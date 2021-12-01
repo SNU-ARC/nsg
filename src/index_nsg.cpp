@@ -9,6 +9,9 @@
 #include "efanna2e/exceptions.h"
 #include "efanna2e/parameters.h"
 
+// SJ:
+static bool dbg_flag;
+
 namespace efanna2e {
 #define _CONTROL_NUM 100
 IndexNSG::IndexNSG(const size_t dimension, const size_t n, Metric m,
@@ -504,6 +507,35 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
   unsigned MaxM_ep = *neighbors;
   neighbors++;
 
+  // SJ: ID table & address
+//  if (!dbg_flag) {
+//    printf("# vertices: %lu\n", nd_);
+//    for (unsigned i = 0; i < nd_; i++) {
+//      unsigned* neighbors_list = (unsigned *)(opt_graph_ + node_size * i + data_len);
+//      unsigned num_neighbors = *neighbors_list;
+//      neighbors_list++;
+//      for (unsigned j = 0; j < num_neighbors; j++) {
+//        char* tmp_addr = opt_graph_ + node_size * neighbors_list[j];
+//        printf("neighbors_list[%u][%u] id: %u, addr: 0x%lx\n", i, j, neighbors_list[j], (uint64_t)tmp_addr); 
+//      }
+//    }
+//    dbg_flag = true;
+//  }
+  // SJ: retrieve NNs and those vectors
+//  unsigned zero_cache = 0;
+//  printf("Total elements: %lu\n", nd_ * dimension_);
+//  for (unsigned i = 0; i < nd_; i++) {
+//    for (unsigned j = 0; j < dimension_; j++) {
+//      unsigned mask_flag = 1;
+//      if (*(float*)(opt_graph_ + node_size * i + 4 * (j + 1)) != 0.0) {
+//        mask_flag = 0;
+//      }
+//      zero_cache += mask_flag;
+//    }
+//  }
+//  printf("zero_cache = %u\n", zero_cache);
+//  printf("zero_rate = %.2f%%\n\n", (float)zero_cache / (nd_ * dimension_));
+
   for (; tmp_l < L && tmp_l < MaxM_ep; tmp_l++) {
     init_ids[tmp_l] = neighbors[tmp_l];
     flags[init_ids[tmp_l]] = true;
@@ -538,7 +570,12 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
 
   std::sort(retset.begin(), retset.begin() + L);
   int k = 0;
+  unsigned int nhops = 0;
   while (k < (int)L) {
+    // SJ
+    printf("\n\n%uth iteration(%u)\n", nhops, retset[k].id);
+    nhops++;
+    
     int nk = L;
 
     if (retset[k].flag) {
@@ -563,10 +600,19 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
         Neighbor nn(id, dist, true);
         int r = InsertIntoPool(retset.data(), L, nn);
 
+        // SJ
+        printf("Selected ID: %u, Distance: %f, Rank: %d\n", id, dist, r);
+
         // if(L+1 < retset.size()) ++L;
         if (r < nk) nk = r;
       }
     }
+    // SJ
+//    printf("PQ snapshot: ");
+//    for (unsigned tmp = 0; tmp < L; tmp++)
+//      printf("%d ",retset[tmp].id);
+//    printf("\n");
+
     if (nk <= k)
       k = nk;
     else
