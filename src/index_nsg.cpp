@@ -10,7 +10,15 @@
 #include "efanna2e/parameters.h"
 
 // SJ:
-static bool dbg_flag;
+#ifdef GET_NEIGHBOR_LIST
+static bool neighbor_list_flag;
+#endif
+#ifdef COUNT_ZERO_ELEMENT
+static bool count_zero_element_flag;
+#endif
+#ifdef COUNT_NEGATIVE_ELEMENT
+static bool count_negative_element_flag;
+#endif
 
 namespace efanna2e {
 #define _CONTROL_NUM 100
@@ -501,40 +509,61 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
   // std::mt19937 rng(rand());
   // GenRandom(rng, init_ids.data(), L, (unsigned) nd_);
 
+#ifdef PROFILE_L0
+  auto s = std::chrono::high_resolution_clock::now();
+#endif
+
   boost::dynamic_bitset<> flags{nd_, 0};
   unsigned tmp_l = 0;
   unsigned *neighbors = (unsigned *)(opt_graph_ + node_size * ep_ + data_len);
   unsigned MaxM_ep = *neighbors;
   neighbors++;
 
-  // SJ: ID table & address
-//  if (!dbg_flag) {
-//    printf("# vertices: %lu\n", nd_);
-//    for (unsigned i = 0; i < nd_; i++) {
-//      unsigned* neighbors_list = (unsigned *)(opt_graph_ + node_size * i + data_len);
-//      unsigned num_neighbors = *neighbors_list;
-//      neighbors_list++;
-//      for (unsigned j = 0; j < num_neighbors; j++) {
-//        char* tmp_addr = opt_graph_ + node_size * neighbors_list[j];
-//        printf("neighbors_list[%u][%u] id: %u, addr: 0x%lx\n", i, j, neighbors_list[j], (uint64_t)tmp_addr); 
-//      }
-//    }
-//    dbg_flag = true;
-//  }
-  // SJ: retrieve NNs and those vectors
-//  unsigned zero_cache = 0;
-//  printf("Total elements: %lu\n", nd_ * dimension_);
-//  for (unsigned i = 0; i < nd_; i++) {
-//    for (unsigned j = 0; j < dimension_; j++) {
-//      unsigned mask_flag = 1;
-//      if (*(float*)(opt_graph_ + node_size * i + 4 * (j + 1)) != 0.0) {
-//        mask_flag = 0;
-//      }
-//      zero_cache += mask_flag;
-//    }
-//  }
-//  printf("zero_cache = %u\n", zero_cache);
-//  printf("zero_rate = %.2f%%\n\n", (float)zero_cache / (nd_ * dimension_));
+#ifdef GET_NEIGHBOR_LIST
+  if (!neighbor_list_flag) {
+    printf("# vertices: %lu\n", nd_);
+    for (unsigned i = 0; i < nd_; i++) {
+      unsigned* neighbors_list = (unsigned *)(opt_graph_ + node_size * i + data_len);
+      unsigned num_neighbors = *neighbors_list;
+      neighbors_list++;
+      for (unsigned j = 0; j < num_neighbors; j++) {
+        char* neighbor_addr = opt_graph_ + node_size * neighbors_list[j];
+        printf("neighbors_list[%u][%u] id: %u, addr: 0x%lx\n", i, j, neighbors_list[j], (uint64_t)neighbor_addr); 
+      }
+    }
+    neighbor_list_flag = true;
+  }
+#endif
+#ifdef COUNT_ZERO_ELEMENT
+  if (!count_zero_element_flag) {
+    unsigned zero_count = 0;
+    printf("# elements: %lu\n", nd_ * dimension_);
+    for (unsigned i = 0; i < nd_; i++) {
+      for (unsigned j = 0; j < dimension_; j++) {
+        unsigned is_zero = (*(float*)(opt_graph_ + node_size * i + 4 * (j + 1)) == 0.0)
+          zero_count += is_zero; 
+      }
+    }
+    printf("zero_count = %u\n", zero_count);
+    printf("zero_rate = %.2lf%%\n\n", (double)zero_count / (nd_ * dimension_));
+    count_zero_element_flag = true;
+  }
+#endif
+#ifdef COUNT_NEGATIVE_ELEMENT
+  if (!count_negative_element_flag) {
+    unsigned negative_count = 0;
+    printf("# elements: %lu\n", nd_ * dimension_);
+    for (unsigned i = 0; i < nd_; i++) {
+      for (unsigned j = 0; j < dimension_; j++) {
+        unsigned is_negative = (*(float*)(opt_graph_ + node_size * i + 4 * (j + 1)) < 0.0);
+          negative_count += is_negative; 
+      }
+    }
+    printf("negative_count = %u\n", negative_count);
+    printf("negative_rate = %.2lf%%\n\n", (double)negative_count / (nd_ * dimension_));
+    count_negative_element_flag = true;
+  }
+#endif
 
   for (; tmp_l < L && tmp_l < MaxM_ep; tmp_l++) {
     init_ids[tmp_l] = neighbors[tmp_l];
@@ -573,7 +602,7 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
   unsigned int nhops = 0;
   while (k < (int)L) {
     // SJ
-    printf("\n\n%uth iteration(%u)\n", nhops, retset[k].id);
+//    printf("%uth iteration(%u)\n", nhops, retset[k].id);
     nhops++;
     
     int nk = L;
@@ -600,19 +629,10 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
         Neighbor nn(id, dist, true);
         int r = InsertIntoPool(retset.data(), L, nn);
 
-        // SJ
-        printf("Selected ID: %u, Distance: %f, Rank: %d\n", id, dist, r);
-
         // if(L+1 < retset.size()) ++L;
         if (r < nk) nk = r;
       }
     }
-    // SJ
-//    printf("PQ snapshot: ");
-//    for (unsigned tmp = 0; tmp < L; tmp++)
-//      printf("%d ",retset[tmp].id);
-//    printf("\n");
-
     if (nk <= k)
       k = nk;
     else
