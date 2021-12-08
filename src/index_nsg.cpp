@@ -698,7 +698,7 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
     printf("id = %u, distance = %f\n", retset[i].id, retset[i].distance);
 #endif
   }
-#ifdef GET_TOPK_SNAPSHOT
+#if defined(GET_TOPK_SNAPSHOT) || defined(GET_NORM_VS_RANK)
   printf("\n\n");
 #endif
   nth_query++;
