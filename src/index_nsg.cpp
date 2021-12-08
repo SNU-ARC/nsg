@@ -13,12 +13,21 @@
 #ifdef GET_NEIGHBOR_LIST
 static bool neighbor_list_flag;
 #endif
+#ifdef GET_ALL_VECTOR
+static bool all_vector_flag;
+#endif
 #ifdef COUNT_ZERO_ELEMENT
 static bool count_zero_element_flag;
 #endif
 #ifdef COUNT_NEGATIVE_ELEMENT
 static bool count_negative_element_flag;
 #endif
+#ifdef GET_MIN_MAX_ELEMENT
+static bool get_min_max_element_flag;
+#endif
+static unsigned int nth_query = 0;
+static unsigned int ntraverse = 0;
+static unsigned int nhops = 0;
 
 namespace efanna2e {
 #define _CONTROL_NUM 100
@@ -534,6 +543,20 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
     neighbor_list_flag = true;
   }
 #endif
+#ifdef GET_ALL_VECTOR
+  if (!all_vector_flag) {
+    for (unsigned i = 0; i < nd_; i++) {
+      float* vertex = (float*)(opt_graph_ + node_size * i);
+      float norm = *vertex;
+      vertex++;
+      for (unsigned j = 0; j < dimension_; j++) {
+        printf("%f ", vertex[j]); 
+      }
+      printf("\n");
+    }
+    all_vector_flag = true;
+  }
+#endif
 #ifdef COUNT_ZERO_ELEMENT
   if (!count_zero_element_flag) {
     unsigned zero_count = 0;
@@ -562,6 +585,30 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
     printf("negative_count = %u\n", negative_count);
     printf("negative_rate = %.2lf%%\n\n", (double)negative_count / (nd_ * dimension_));
     count_negative_element_flag = true;
+  }
+#endif
+#ifdef GET_MIN_MAX_ELEMENT
+  if (!get_min_max_element_flag) {
+    float* max_elements = (float*)calloc(dimension_, sizeof(float));
+    float* min_elements = (float*)calloc(dimension_, sizeof(float));
+    for (unsigned i = 0; i < nd_; i++) {
+      for (unsigned j = 0; j < dimension_; j++) {
+        float* temp_data = (float*)(opt_graph_ + node_size * i + 4);
+        max_elements[j] = max_elements[j] < temp_data[j] ? temp_data[j] : max_elements[j];
+        min_elements[j] = min_elements[j] > temp_data[j] ? temp_data[j] : min_elements[j];
+      }
+    }
+    std::cout << "max_elements:";
+    for (unsigned i = 0; i < dimension_; i++)
+      std::cout << " " << max_elements[i];
+    std::cout<<std::endl;
+    std::cout << "min_elements:";
+    for (unsigned i = 0; i < dimension_; i++)
+      std::cout << " " << min_elements[i];
+    std::cout<<std::endl;
+    get_min_max_element_flag = true;
+    free(max_elements);
+    free(min_elements);
   }
 #endif
 
@@ -596,18 +643,16 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
     L++;
   }
   // std::cout<<L<<std::endl;
+//  std::cout << "init_ids_size: " << init_ids.size() << std::endl;
 
   std::sort(retset.begin(), retset.begin() + L);
   int k = 0;
-  unsigned int nhops = 0;
   while (k < (int)L) {
-    // SJ
-//    printf("%uth iteration(%u)\n", nhops, retset[k].id);
-    nhops++;
     
     int nk = L;
 
     if (retset[k].flag) {
+      nhops++;
       retset[k].flag = false;
       unsigned n = retset[k].id;
 
@@ -621,6 +666,7 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
         unsigned id = neighbors[m];
         if (flags[id]) continue;
         flags[id] = 1;
+        ntraverse++;
         float *data = (float *)(opt_graph_ + node_size * id);
         float norm = *data;
         data++;
@@ -628,6 +674,10 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
         if (dist >= retset[L - 1].distance) continue;
         Neighbor nn(id, dist, true);
         int r = InsertIntoPool(retset.data(), L, nn);
+
+#ifdef GET_NORM_VS_RANK
+        printf("norm: %f, dist: %f, rank: %d\n", norm, dist - norm, r);
+#endif
 
         // if(L+1 < retset.size()) ++L;
         if (r < nk) nk = r;
@@ -638,9 +688,20 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
     else
       ++k;
   }
+//  printf("%u hops, %u traverses\n", nhops, ntraverse);
+#ifdef GET_TOPK_SNAPSHOT
+    printf("%u query result\n", nth_query);
+#endif
   for (size_t i = 0; i < K; i++) {
     indices[i] = retset[i].id;
+#ifdef GET_TOPK_SNAPSHOT
+    printf("id = %u, distance = %f\n", retset[i].id, retset[i].distance);
+#endif
   }
+#ifdef GET_TOPK_SNAPSHOT
+  printf("\n\n");
+#endif
+  nth_query++;
 }
 
 void IndexNSG::OptimizeGraph(float *data) {  // use after build or load
