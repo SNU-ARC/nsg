@@ -647,9 +647,18 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
 
   std::sort(retset.begin(), retset.begin() + L);
   int k = 0;
+#ifdef GET_MISS_TRAVERSE
+  unsigned int query_traverse = 0;
+  unsigned int query_no_rank = 0;
+#endif
   while (k < (int)L) {
     
     int nk = L;
+#ifdef GET_MISS_TRAVERSE
+    unsigned int local_traverse = 0;
+    unsigned int local_no_rank = 0;
+#endif
+    int r;
 
     if (retset[k].flag) {
       nhops++;
@@ -667,26 +676,43 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
         if (flags[id]) continue;
         flags[id] = 1;
         ntraverse++;
+#ifdef GET_MISS_TRAVERSE
+        local_traverse++;
+        query_traverse++;
+#endif
         float *data = (float *)(opt_graph_ + node_size * id);
         float norm = *data;
         data++;
         float dist = dist_fast->compare(query, data, norm, (unsigned)dimension_);
-        if (dist >= retset[L - 1].distance) continue;
+        if (dist >= retset[L - 1].distance) {
+#ifdef GET_MISS_TRAVERSE
+          local_no_rank++;
+          query_no_rank++;
+#endif
+          continue;
+        }
         Neighbor nn(id, dist, true);
-        int r = InsertIntoPool(retset.data(), L, nn);
+        r = InsertIntoPool(retset.data(), L, nn);
+//        int r = InsertIntoPool(retset.data(), L, nn);
 
 #ifdef GET_NORM_VS_RANK
-        printf("norm: %f, dist: %f, rank: %d\n", norm, dist - norm, r);
+        printf("norm: %f, dist: %f, diff: %f, rank: %d\n", norm, dist, (norm-dist)/2, r);
 #endif
 
         // if(L+1 < retset.size()) ++L;
         if (r < nk) nk = r;
       }
+#ifdef GET_MISS_TRAVERSE
+      printf("k: %d, r: %d, # of traversed: %u, # of invalid: %u, ratio: %.2f%%\n", k, r, local_traverse, local_no_rank, (float)local_no_rank / local_traverse * 100);
+#endif
     }
     if (nk <= k)
       k = nk;
     else
       ++k;
+#ifdef GET_NORM_VS_RANK
+  printf("\n\n");
+#endif
   }
 //  printf("%u hops, %u traverses\n", nhops, ntraverse);
 #ifdef GET_TOPK_SNAPSHOT
@@ -698,9 +724,10 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
     printf("id = %u, distance = %f\n", retset[i].id, retset[i].distance);
 #endif
   }
-#if defined(GET_TOPK_SNAPSHOT) || defined(GET_NORM_VS_RANK)
-  printf("\n\n");
+#ifdef GET_MISS_TRAVERSE
+  printf("[Query_summary] # of traversed: %u, # of invalid: %u, ratio: %.2f%%\n", query_traverse, query_no_rank, (float)query_no_rank / query_traverse * 100);
 #endif
+  printf("\n\n");
   nth_query++;
 }
 
