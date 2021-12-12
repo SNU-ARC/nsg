@@ -35,7 +35,7 @@ elif [ "${1}" == "all" ]; then
     fi
   fi
   echo "Perform kNN searching using NSG index"
-  ./test_nsg_optimized_search sift1M/sift_base.fvecs sift1M/sift_query.fvecs sift1M.nsg 10 10 sift1M_nsg_result.ivecs > sift1M_search_${TIME}.log
+  ./test_nsg_optimized_search sift1M/sift_base.fvecs sift1M/sift_query.fvecs sift1M.nsg 10 1 sift1M_nsg_result.ivecs sift1M/sift_groundtruth.ivecs > sift1M_search_${TIME}.log
 
   if [ ! -f "gist1M.nsg" ]; then
     echo "Converting gist_400nn.graph kNN graph to gist.nsg"
@@ -47,7 +47,7 @@ elif [ "${1}" == "all" ]; then
     fi
   fi
   echo "Perform kNN searching using NSG index"
-  ./test_nsg_optimized_search gist1M/gist_base.fvecs gist1M/gist_query.fvecs gist1M.nsg 10 10 gist1M_nsg_result.ivecs > gist1M_search_${TIME}.log
+  ./test_nsg_optimized_search gist1M/gist_base.fvecs gist1M/gist_query.fvecs gist1M.nsg 10 1 gist1M_nsg_result.ivecs gist1M/gist_groundtruth.ivecs > gist1M_search_${TIME}.log
 else
   echo "Please use either 'sift' or 'gist' as an argument"
 fi
