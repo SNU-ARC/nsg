@@ -657,6 +657,9 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
 #ifdef GET_MISS_TRAVERSE
     unsigned int local_traverse = 0;
     unsigned int local_no_rank = 0;
+    unsigned int local_far_neighbors = 0;
+    unsigned int local_far_neighbors_hit = 0;
+    unsigned int local_far_neighbors_miss = 0;
 #endif
     int r;
 
@@ -684,13 +687,22 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
         float norm = *data;
         data++;
         float dist = dist_fast->compare(query, data, norm, (unsigned)dimension_);
+#ifdef GET_MISS_TRAVERSE
+        if (dist >= retset[k].distance)
+          local_far_neighbors++;
+#endif
         if (dist >= retset[L - 1].distance) {
 #ifdef GET_MISS_TRAVERSE
           local_no_rank++;
           query_no_rank++;
+          if (dist >= retset[k].distance)
+            local_far_neighbors_miss++;
 #endif
           continue;
         }
+#ifdef GET_MISS_TRAVERSE
+        else if (dist >= retset[k].distance) local_far_neighbors_hit++;
+#endif
         Neighbor nn(id, dist, true);
         r = InsertIntoPool(retset.data(), L, nn);
 //        int r = InsertIntoPool(retset.data(), L, nn);
@@ -703,7 +715,8 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
         if (r < nk) nk = r;
       }
 #ifdef GET_MISS_TRAVERSE
-      printf("k: %d, r: %d, # of traversed: %u, # of invalid: %u, ratio: %.2f%%\n", k, r, local_traverse, local_no_rank, (float)local_no_rank / local_traverse * 100);
+      printf("k: %d, r: %d, # of traversed: %u, # of invalid: %u, ratio: %.2f%%, ", k, r, local_traverse, local_no_rank, (float)local_no_rank / local_traverse * 100);
+      printf("# of far_neighbors: %u, # of far_neighbors_hit: %u, # of far_neighbors_miss: %u, ratio: %.2f%%\n", local_far_neighbors, local_far_neighbors_hit, local_far_neighbors_miss, (float)local_far_neighbors_miss / local_far_neighbors * 100);
 #endif
     }
     if (nk <= k)
@@ -727,7 +740,7 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
 #ifdef GET_MISS_TRAVERSE
   printf("[Query_summary] # of traversed: %u, # of invalid: %u, ratio: %.2f%%\n", query_traverse, query_no_rank, (float)query_no_rank / query_traverse * 100);
 #endif
-  printf("\n\n");
+//  printf("\n\n");
   nth_query++;
 }
 
