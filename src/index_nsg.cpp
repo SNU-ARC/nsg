@@ -27,7 +27,6 @@ static bool get_min_max_element_flag;
 #endif
 static unsigned int nth_query = 0;
 static unsigned int ntraverse = 0;
-static unsigned int nhops = 0;
 
 namespace efanna2e {
 #define _CONTROL_NUM 100
@@ -649,22 +648,22 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
   int k = 0;
 #ifdef GET_MISS_TRAVERSE
   unsigned int query_traverse = 0;
-  unsigned int query_no_rank = 0;
+  unsigned int query_traverse_miss = 0;
 #endif
   while (k < (int)L) {
     
     int nk = L;
 #ifdef GET_MISS_TRAVERSE
     unsigned int local_traverse = 0;
-    unsigned int local_no_rank = 0;
+    unsigned int local_traverse_miss = 0;
+#endif
+#ifdef THETA_GUIDED_SEARCH
     unsigned int local_far_neighbors = 0;
-    unsigned int local_far_neighbors_hit = 0;
-    unsigned int local_far_neighbors_miss = 0;
 #endif
     int r;
 
     if (retset[k].flag) {
-      nhops++;
+
       retset[k].flag = false;
       unsigned n = retset[k].id;
 
@@ -672,36 +671,63 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
       unsigned *neighbors = (unsigned *)(opt_graph_ + node_size * n + data_len);
       unsigned MaxM = *neighbors;
       neighbors++;
+#ifdef GET_MISS_TRAVERSE
+      std::vector<unsigned> inserted_ids;
+#endif
       for (unsigned m = 0; m < MaxM; ++m)
         _mm_prefetch(opt_graph_ + node_size * neighbors[m], _MM_HINT_T0);
+#ifdef THETA_GUIDED_SEARCH
+      bool guided_flag[MaxM];
+      for (unsigned int m = 0; m < MaxM; ++m) {
+        unsigned int id = neighbors[m];
+        float* vertex_to_query = new float[dimension_];
+        float* vertex_to_neighbor = new float[dimension_];
+        float* vertex = (float *)(opt_graph_ + node_size * n + sizeof(float));
+        float* neighbor = (float *)(opt_graph_ + node_size * id + sizeof(float));
+        for (unsigned int tmp = 0; tmp < dimension_; tmp++) {
+          vertex_to_query[tmp] = query[tmp] - vertex[tmp];
+          vertex_to_neighbor[tmp] = neighbor[tmp] - vertex[tmp];
+        }
+        float inner_product = dist_fast->DistanceInnerProduct::compare(vertex_to_query, vertex_to_neighbor, (unsigned)dimension_);
+        float query_abs = sqrt(dist_fast->norm(vertex_to_query, dimension_));
+        float neighbor_abs = sqrt(dist_fast->norm(vertex_to_neighbor, dimension_));
+        double theta = acos(inner_product / (query_abs * neighbor_abs)) * 180.0 / 3.1456265;
+//        std::cout << "theta: " << theta << std::endl;
+//        std::cout << "inner_product: " << inner_product << std::endl;
+        delete vertex_to_query;
+        delete vertex_to_neighbor;
+        if (theta >= 80.0) {
+//        if (inner_product < 0) {
+          local_far_neighbors++;
+          guided_flag[m] = false;
+        }
+        else guided_flag[m] = true;
+      }
+#endif
       for (unsigned m = 0; m < MaxM; ++m) {
         unsigned id = neighbors[m];
         if (flags[id]) continue;
+#ifdef THETA_GUIDED_SEARCH
+        if (!guided_flag[m]) continue;
+#endif
         flags[id] = 1;
         ntraverse++;
-#ifdef GET_MISS_TRAVERSE
-        local_traverse++;
-        query_traverse++;
-#endif
         float *data = (float *)(opt_graph_ + node_size * id);
         float norm = *data;
         data++;
         float dist = dist_fast->compare(query, data, norm, (unsigned)dimension_);
-#ifdef GET_MISS_TRAVERSE
-        if (dist >= retset[k].distance)
-          local_far_neighbors++;
-#endif
         if (dist >= retset[L - 1].distance) {
 #ifdef GET_MISS_TRAVERSE
-          local_no_rank++;
-          query_no_rank++;
-          if (dist >= retset[k].distance)
-            local_far_neighbors_miss++;
+          local_traverse++;
+          query_traverse++;
+          local_traverse_miss++;
+          query_traverse_miss++;
 #endif
           continue;
         }
 #ifdef GET_MISS_TRAVERSE
-        else if (dist >= retset[k].distance) local_far_neighbors_hit++;
+        local_traverse++;
+        query_traverse++;
 #endif
         Neighbor nn(id, dist, true);
         r = InsertIntoPool(retset.data(), L, nn);
@@ -710,13 +736,27 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
 #ifdef GET_NORM_VS_RANK
         printf("norm: %f, dist: %f, diff: %f, rank: %d\n", norm, dist, (norm-dist)/2, r);
 #endif
-
+#ifdef GET_MISS_TRAVERSE
+        inserted_ids.push_back(id);
+//        printf("k: %d, r: %d\n", k, r);
+#endif
         // if(L+1 < retset.size()) ++L;
         if (r < nk) nk = r;
       }
 #ifdef GET_MISS_TRAVERSE
-      printf("k: %d, r: %d, # of traversed: %u, # of invalid: %u, ratio: %.2f%%, ", k, r, local_traverse, local_no_rank, (float)local_no_rank / local_traverse * 100);
-      printf("# of far_neighbors: %u, # of far_neighbors_hit: %u, # of far_neighbors_miss: %u, ratio: %.2f%%\n", local_far_neighbors, local_far_neighbors_hit, local_far_neighbors_miss, (float)local_far_neighbors_miss / local_far_neighbors * 100);
+//      for (unsigned int i = 0; i < inserted_ids.size(); i++) {
+//        unsigned int j = 0;
+//        while (j < L && inserted_ids[i] != retset[j].id) 
+//          j++;
+//        if (j == L) {
+//          local_traverse_miss++;
+//          query_traverse_miss++;
+//        }
+//      }
+//      printf("# of traversed: %u, # of invalid: %u, ratio: %.2f%%\n", local_traverse, local_traverse_miss, (float)local_traverse_miss / local_traverse * 100);
+#endif
+#ifdef THETA_GUIDED_SEARCH
+//      printf("# of far_neighbors: %u\n", local_far_neighbors);
 #endif
     }
     if (nk <= k)
@@ -727,7 +767,6 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
   printf("\n\n");
 #endif
   }
-//  printf("%u hops, %u traverses\n", nhops, ntraverse);
 #ifdef GET_TOPK_SNAPSHOT
     printf("%u query result\n", nth_query);
 #endif
@@ -738,7 +777,9 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
 #endif
   }
 #ifdef GET_MISS_TRAVERSE
-  printf("[Query_summary] # of traversed: %u, # of invalid: %u, ratio: %.2f%%\n", query_traverse, query_no_rank, (float)query_no_rank / query_traverse * 100);
+  total_traverse += query_traverse;
+  total_traverse_miss += query_traverse_miss;
+//  printf("[Query_summary] # of traversed: %u, # of invalid: %u, ratio: %.2f%%\n", query_traverse, query_traverse_miss, (float)query_traverse_miss / query_traverse * 100);
 #endif
 //  printf("\n\n");
   nth_query++;

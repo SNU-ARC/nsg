@@ -40,6 +40,10 @@ class IndexNSG : public Index {
       unsigned *indices);
   void OptimizeGraph(float* data);
 
+  // SJ: For profile
+  unsigned int total_traverse = 0;
+  unsigned int total_traverse_miss = 0;
+
   protected:
     typedef std::vector<std::vector<unsigned > > CompactGraph;
     typedef std::vector<SimpleNeighbors > LockGraph;
