@@ -46,9 +46,14 @@ class IndexNSG : public Index {
   unsigned int total_traverse = 0;
   unsigned int total_traverse_miss = 0;
   std::chrono::duration<double> time_elapsed = std::chrono::high_resolution_clock::now() - std::chrono::high_resolution_clock::now();
+  void GetNeighborList();
+  void GetAllVectors();
+  void CountZeroElements();
+  void CountNegativeElements();
+  void GetMinMaxElement();  
 
   // SJ: For SRP
-  void GenerateHash (float** hash_vector, unsigned int dimension, unsigned int k);
+  void GenerateHash (float** hash_vector, unsigned int hash_dim, unsigned int k);
 
   protected:
     typedef std::vector<std::vector<unsigned > > CompactGraph;

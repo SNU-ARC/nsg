@@ -10,22 +10,12 @@
 #include "efanna2e/parameters.h"
 
 #include <random>
-// SJ:
-#ifdef GET_NEIGHBOR_LIST
+// SJ: For profile
 static bool neighbor_list_flag;
-#endif
-#ifdef GET_ALL_VECTOR
 static bool all_vector_flag;
-#endif
-#ifdef COUNT_ZERO_ELEMENT
 static bool count_zero_element_flag;
-#endif
-#ifdef COUNT_NEGATIVE_ELEMENT
 static bool count_negative_element_flag;
-#endif
-#ifdef GET_MIN_MAX_ELEMENT
 static bool get_min_max_element_flag;
-#endif
 static unsigned int nth_query = 0;
 static unsigned int ntraverse = 0;
 
@@ -530,87 +520,19 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
   neighbors++;
 
 #ifdef GET_NEIGHBOR_LIST
-  if (!neighbor_list_flag) {
-    printf("# vertices: %lu\n", nd_);
-    for (unsigned i = 0; i < nd_; i++) {
-      unsigned* neighbors_list = (unsigned *)(opt_graph_ + node_size * i + data_len);
-      unsigned num_neighbors = *neighbors_list;
-      neighbors_list++;
-      for (unsigned j = 0; j < num_neighbors; j++) {
-        char* neighbor_addr = opt_graph_ + node_size * neighbors_list[j];
-        printf("neighbors_list[%u][%u] id: %u, addr: 0x%lx\n", i, j, neighbors_list[j], (uint64_t)neighbor_addr); 
-      }
-    }
-    neighbor_list_flag = true;
-  }
+  GetNeighborList();
 #endif
 #ifdef GET_ALL_VECTOR
-  if (!all_vector_flag) {
-    for (unsigned i = 0; i < nd_; i++) {
-      float* vertex = (float*)(opt_graph_ + node_size * i);
-      float norm = *vertex;
-      vertex++;
-      for (unsigned j = 0; j < dimension_; j++) {
-        printf("%f ", vertex[j]); 
-      }
-      printf("\n");
-    }
-    all_vector_flag = true;
-  }
+  GetAllVectors();
 #endif
 #ifdef COUNT_ZERO_ELEMENT
-  if (!count_zero_element_flag) {
-    unsigned zero_count = 0;
-    printf("# elements: %lu\n", nd_ * dimension_);
-    for (unsigned i = 0; i < nd_; i++) {
-      for (unsigned j = 0; j < dimension_; j++) {
-        unsigned is_zero = (*(float*)(opt_graph_ + node_size * i + 4 * (j + 1)) == 0.0)
-          zero_count += is_zero; 
-      }
-    }
-    printf("zero_count = %u\n", zero_count);
-    printf("zero_rate = %.2lf%%\n\n", (double)zero_count / (nd_ * dimension_));
-    count_zero_element_flag = true;
-  }
+  CountZeroElements();
 #endif
 #ifdef COUNT_NEGATIVE_ELEMENT
-  if (!count_negative_element_flag) {
-    unsigned negative_count = 0;
-    printf("# elements: %lu\n", nd_ * dimension_);
-    for (unsigned i = 0; i < nd_; i++) {
-      for (unsigned j = 0; j < dimension_; j++) {
-        unsigned is_negative = (*(float*)(opt_graph_ + node_size * i + 4 * (j + 1)) < 0.0);
-          negative_count += is_negative; 
-      }
-    }
-    printf("negative_count = %u\n", negative_count);
-    printf("negative_rate = %.2lf%%\n\n", (double)negative_count / (nd_ * dimension_));
-    count_negative_element_flag = true;
-  }
+  CountNegativeElements();
 #endif
 #ifdef GET_MIN_MAX_ELEMENT
-  if (!get_min_max_element_flag) {
-    float* max_elements = (float*)calloc(dimension_, sizeof(float));
-    float* min_elements = (float*)calloc(dimension_, sizeof(float));
-    for (unsigned i = 0; i < nd_; i++) {
-      for (unsigned j = 0; j < dimension_; j++) {
-        float* temp_data = (float*)(opt_graph_ + node_size * i + 4);
-        max_elements[j] = max_elements[j] < temp_data[j] ? temp_data[j] : max_elements[j];
-        min_elements[j] = min_elements[j] > temp_data[j] ? temp_data[j] : min_elements[j];
-      }
-    }
-    std::cout << "max_elements:";
-    for (unsigned i = 0; i < dimension_; i++)
-      std::cout << " " << max_elements[i];
-    std::cout<<std::endl;
-    std::cout << "min_elements:";
-    for (unsigned i = 0; i < dimension_; i++)
-      std::cout << " " << min_elements[i];
-    std::cout<<std::endl;
-    get_min_max_element_flag = true;
-    free(max_elements);
-    free(min_elements);
-  }
+  GetMinMaxElement();
 #endif
 
   for (; tmp_l < L && tmp_l < MaxM_ep; tmp_l++) {
@@ -900,6 +822,91 @@ void IndexNSG::tree_grow(const Parameters &parameter) {
     }
   }
 }
+// SJ: For profiling
+void IndexNSG::GetNeighborList() {
+  if (!neighbor_list_flag) {
+    printf("# vertices: %lu\n", nd_);
+    for (unsigned i = 0; i < nd_; i++) {
+      unsigned* neighbors_list = (unsigned *)(opt_graph_ + node_size * i + data_len);
+      unsigned num_neighbors = *neighbors_list;
+      neighbors_list++;
+      for (unsigned j = 0; j < num_neighbors; j++) {
+        char* neighbor_addr = opt_graph_ + node_size * neighbors_list[j];
+        printf("neighbors_list[%u][%u] id: %u, addr: 0x%lx\n", i, j, neighbors_list[j], (uint64_t)neighbor_addr); 
+      }
+    }
+    neighbor_list_flag = true;
+  }
+}
+void IndexNSG::GetAllVectors() {
+  if (!all_vector_flag) {
+    for (unsigned i = 0; i < nd_; i++) {
+      float* vertex = (float*)(opt_graph_ + node_size * i);
+      float norm = *vertex;
+      vertex++;
+      for (unsigned j = 0; j < dimension_; j++) {
+        printf("%f ", vertex[j]); 
+      }
+      printf("\n");
+    }
+    all_vector_flag = true;
+  }
+}
+void IndexNSG::CountZeroElements() {
+  if (!count_zero_element_flag) {
+    unsigned zero_count = 0;
+    printf("# elements: %lu\n", nd_ * dimension_);
+    for (unsigned i = 0; i < nd_; i++) {
+      for (unsigned j = 0; j < dimension_; j++) {
+        unsigned is_zero = (*(float*)(opt_graph_ + node_size * i + 4 * (j + 1)) == 0.0);
+        zero_count += is_zero; 
+      }
+    }
+    printf("zero_count = %u\n", zero_count);
+    printf("zero_rate = %.2lf%%\n\n", (double)zero_count / (nd_ * dimension_));
+    count_zero_element_flag = true;
+  }
+}
+void IndexNSG::CountNegativeElements() {
+  if (!count_negative_element_flag) {
+    unsigned negative_count = 0;
+    printf("# elements: %lu\n", nd_ * dimension_);
+    for (unsigned i = 0; i < nd_; i++) {
+      for (unsigned j = 0; j < dimension_; j++) {
+        unsigned is_negative = (*(float*)(opt_graph_ + node_size * i + 4 * (j + 1)) < 0.0);
+          negative_count += is_negative; 
+      }
+    }
+    printf("negative_count = %u\n", negative_count);
+    printf("negative_rate = %.2lf%%\n\n", (double)negative_count / (nd_ * dimension_));
+    count_negative_element_flag = true;
+  }
+}
+void IndexNSG::GetMinMaxElement() {
+  if (!get_min_max_element_flag) {
+    float* max_elements = (float*)calloc(dimension_, sizeof(float));
+    float* min_elements = (float*)calloc(dimension_, sizeof(float));
+    for (unsigned i = 0; i < nd_; i++) {
+      for (unsigned j = 0; j < dimension_; j++) {
+        float* temp_data = (float*)(opt_graph_ + node_size * i + 4);
+        max_elements[j] = max_elements[j] < temp_data[j] ? temp_data[j] : max_elements[j];
+        min_elements[j] = min_elements[j] > temp_data[j] ? temp_data[j] : min_elements[j];
+      }
+    }
+    std::cout << "max_elements:";
+    for (unsigned i = 0; i < dimension_; i++)
+      std::cout << " " << max_elements[i];
+    std::cout<<std::endl;
+    std::cout << "min_elements:";
+    for (unsigned i = 0; i < dimension_; i++)
+      std::cout << " " << min_elements[i];
+    std::cout<<std::endl;
+    get_min_max_element_flag = true;
+    free(max_elements);
+    free(min_elements);
+  }
+}
+
 // SJ: For SRP
 void IndexNSG::GenerateHash (float** hash_vector, unsigned int hash_dim, unsigned int k) {
   DistanceFastL2* dist_fast = (DistanceFastL2*) distance_;
