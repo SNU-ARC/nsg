@@ -12,6 +12,8 @@
 #include <boost/dynamic_bitset.hpp>
 #include <stack>
 
+#include <chrono>
+
 namespace efanna2e {
 
 class IndexNSG : public Index {
@@ -43,6 +45,10 @@ class IndexNSG : public Index {
   // SJ: For profile
   unsigned int total_traverse = 0;
   unsigned int total_traverse_miss = 0;
+  std::chrono::duration<double> time_elapsed = std::chrono::high_resolution_clock::now() - std::chrono::high_resolution_clock::now();
+
+  // SJ: For SRP
+  void GenerateHash (float** hash_vector, unsigned int dimension, unsigned int k);
 
   protected:
     typedef std::vector<std::vector<unsigned > > CompactGraph;

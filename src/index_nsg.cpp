@@ -9,6 +9,7 @@
 #include "efanna2e/exceptions.h"
 #include "efanna2e/parameters.h"
 
+#include <random>
 // SJ:
 #ifdef GET_NEIGHBOR_LIST
 static bool neighbor_list_flag;
@@ -520,6 +521,7 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
 #ifdef PROFILE_L0
   auto s = std::chrono::high_resolution_clock::now();
 #endif
+//  auto seed_start = std::chrono::high_resolution_clock::now();
 
   boost::dynamic_bitset<> flags{nd_, 0};
   unsigned tmp_l = 0;
@@ -650,12 +652,15 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
   unsigned int query_traverse = 0;
   unsigned int query_traverse_miss = 0;
 #endif
+//  auto seed_end = std::chrono::high_resolution_clock::now();
+//  time_elapsed += (seed_end - seed_start);
   while (k < (int)L) {
     
     int nk = L;
 #ifdef GET_MISS_TRAVERSE
     unsigned int local_traverse = 0;
     unsigned int local_traverse_miss = 0;
+    std::vector<unsigned> inserted_ids;
 #endif
 #ifdef THETA_GUIDED_SEARCH
     unsigned int local_far_neighbors = 0;
@@ -666,16 +671,17 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
 
       retset[k].flag = false;
       unsigned n = retset[k].id;
+//      auto neighbor_prefetch_start = std::chrono::high_resolution_clock::now();
 
       _mm_prefetch(opt_graph_ + node_size * n + data_len, _MM_HINT_T0);
       unsigned *neighbors = (unsigned *)(opt_graph_ + node_size * n + data_len);
       unsigned MaxM = *neighbors;
       neighbors++;
-#ifdef GET_MISS_TRAVERSE
-      std::vector<unsigned> inserted_ids;
-#endif
+     
       for (unsigned m = 0; m < MaxM; ++m)
         _mm_prefetch(opt_graph_ + node_size * neighbors[m], _MM_HINT_T0);
+//      auto neighbor_prefetch_end = std::chrono::high_resolution_clock::now();
+//      time_elapsed += (neighbor_prefetch_end - neighbor_prefetch_start);
 #ifdef THETA_GUIDED_SEARCH
       bool guided_flag[MaxM];
       for (unsigned int m = 0; m < MaxM; ++m) {
@@ -704,6 +710,7 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
         else guided_flag[m] = true;
       }
 #endif
+//      auto traverse_start = std::chrono::high_resolution_clock::now();
       for (unsigned m = 0; m < MaxM; ++m) {
         unsigned id = neighbors[m];
         if (flags[id]) continue;
@@ -743,6 +750,8 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
         // if(L+1 < retset.size()) ++L;
         if (r < nk) nk = r;
       }
+//      auto traverse_end = std::chrono::high_resolution_clock::now();
+//      time_elapsed += (traverse_end - traverse_start);
 #ifdef GET_MISS_TRAVERSE
 //      for (unsigned int i = 0; i < inserted_ids.size(); i++) {
 //        unsigned int j = 0;
@@ -888,6 +897,33 @@ void IndexNSG::tree_grow(const Parameters &parameter) {
   for (size_t i = 0; i < nd_; ++i) {
     if (final_graph_[i].size() > width) {
       width = final_graph_[i].size();
+    }
+  }
+}
+// SJ: For SRP
+void IndexNSG::GenerateHash (float** hash_vector, unsigned int hash_dim, unsigned int k) {
+  DistanceFastL2* dist_fast = (DistanceFastL2*) distance_;
+  std::normal_distribution<float> norm_dist (0.0, 1.0);
+  std::mt19937 gen(rand());
+  float hash_vector_norm[k - 1];
+
+  for (unsigned int dim = 0; dim < hash_dim; dim++) { // Random generated vector
+    hash_vector[0][dim] = norm_dist(gen);
+  }
+  hash_vector_norm[0] = dist_fast->norm(hash_vector[0], hash_dim);
+
+  for (unsigned int hash_col = 1; hash_col < k; hash_col++) { // Iterate to generate vectors orthogonal to 0th column
+    for (unsigned int dim = 0; dim < hash_dim; dim++) { // Random generated vector
+       hash_vector[hash_col][dim] = norm_dist(gen);
+    }
+    hash_vector_norm[hash_col] = dist_fast->norm(hash_vector[hash_col], hash_dim);
+
+    // Gram-schmidt process
+    for (unsigned int compare_col = 0; compare_col < hash_col - 1; compare_col++) {
+      float inner_product_between_hash = dist_fast->DistanceInnerProduct::compare(hash_vector[hash_col], hash_vector[compare_col], (unsigned)hash_dim);
+      for (unsigned int dim = 0; dim < hash_dim; dim++) {
+        hash_vector[hash_col][dim] -= (inner_product_between_hash / hash_vector_norm[compare_col] * hash_vector[compare_col][dim]);
+      }
     }
   }
 }
