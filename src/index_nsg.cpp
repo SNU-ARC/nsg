@@ -573,11 +573,22 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
 #ifdef GET_MISS_TRAVERSE
   unsigned int query_traverse = 0;
   unsigned int query_traverse_miss = 0;
+  unsigned int hash_bitwidth = 128;
+  float* hash_vector = new float[dimension_ * hash_bitwidth];
+  GenerateHash(hash_vector, (unsigned int)dimension_, hash_bitwidth);
+  for (unsigned int i = 1; i < hash_bitwidth; i++) {
+    std::cout << dist_fast->DistanceInnerProduct::compare(hash_vector, &hash_vector[dimension_ * i], dimension_) << std::endl;
+//    for (unsigned int j = 0; j < 128; j++) {
+//      std::cout << hash_vector[i * dimension_ + j] << " ";
+//    }
+//    std::cout << std::endl << std::endl;
+  }
+  std::cout << std::endl;
+  delete hash_vector;
 #endif
 //  auto seed_end = std::chrono::high_resolution_clock::now();
 //  time_elapsed += (seed_end - seed_start);
   while (k < (int)L) {
-    
     int nk = L;
 #ifdef GET_MISS_TRAVERSE
     unsigned int local_traverse = 0;
@@ -908,28 +919,28 @@ void IndexNSG::GetMinMaxElement() {
 }
 
 // SJ: For SRP
-void IndexNSG::GenerateHash (float** hash_vector, unsigned int hash_dim, unsigned int k) {
+void IndexNSG::GenerateHash (float* hash_vector, unsigned int hash_dim, unsigned int hash_bitwidth) {
   DistanceFastL2* dist_fast = (DistanceFastL2*) distance_;
   std::normal_distribution<float> norm_dist (0.0, 1.0);
   std::mt19937 gen(rand());
-  float hash_vector_norm[k - 1];
+  float hash_vector_norm[hash_bitwidth - 1];
 
   for (unsigned int dim = 0; dim < hash_dim; dim++) { // Random generated vector
-    hash_vector[0][dim] = norm_dist(gen);
+    hash_vector[dim] = norm_dist(gen);
   }
-  hash_vector_norm[0] = dist_fast->norm(hash_vector[0], hash_dim);
+  hash_vector_norm[0] = dist_fast->norm(hash_vector, hash_dim);
 
-  for (unsigned int hash_col = 1; hash_col < k; hash_col++) { // Iterate to generate vectors orthogonal to 0th column
+  for (unsigned int hash_col = 1; hash_col < hash_bitwidth; hash_col++) { // Iterate to generate vectors orthogonal to 0th column
     for (unsigned int dim = 0; dim < hash_dim; dim++) { // Random generated vector
-       hash_vector[hash_col][dim] = norm_dist(gen);
+       hash_vector[hash_col * hash_dim + dim] = norm_dist(gen);
     }
-    hash_vector_norm[hash_col] = dist_fast->norm(hash_vector[hash_col], hash_dim);
+    hash_vector_norm[hash_col] = dist_fast->norm(&hash_vector[hash_col * hash_dim], hash_dim);
 
     // Gram-schmidt process
-    for (unsigned int compare_col = 0; compare_col < hash_col - 1; compare_col++) {
-      float inner_product_between_hash = dist_fast->DistanceInnerProduct::compare(hash_vector[hash_col], hash_vector[compare_col], (unsigned)hash_dim);
+    for (unsigned int compare_col = 0; compare_col < hash_col; compare_col++) {
+      float inner_product_between_hash = dist_fast->DistanceInnerProduct::compare(&hash_vector[hash_col * hash_dim], &hash_vector[compare_col * hash_dim], (unsigned)hash_dim);
       for (unsigned int dim = 0; dim < hash_dim; dim++) {
-        hash_vector[hash_col][dim] -= (inner_product_between_hash / hash_vector_norm[compare_col] * hash_vector[compare_col][dim]);
+        hash_vector[hash_col * hash_dim + dim] -= (inner_product_between_hash / hash_vector_norm[compare_col] * hash_vector[compare_col * hash_dim + dim]);
       }
     }
   }
