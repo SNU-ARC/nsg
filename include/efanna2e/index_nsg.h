@@ -53,7 +53,12 @@ class IndexNSG : public Index {
   void GetMinMaxElement();  
 
   // SJ: For SRP
-  void GenerateHash (float** hash_vector, unsigned int hash_dim, unsigned int k);
+  unsigned int hash_bitwidth;
+  float* hash_vector;
+  void GenerateHash (float* hash_vector, unsigned int hash_dim, unsigned int hash_bitwidth);
+  bool* hash_to_neighbor;
+  void GenerateHashtoNeighbor ();
+  void DeallocateHashtoNeighbor ();
 
   protected:
     typedef std::vector<std::vector<unsigned > > CompactGraph;

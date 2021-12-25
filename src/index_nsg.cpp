@@ -573,21 +573,16 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
 #ifdef GET_MISS_TRAVERSE
   unsigned int query_traverse = 0;
   unsigned int query_traverse_miss = 0;
-  unsigned int hash_bitwidth = 128;
-  float* hash_vector = new float[dimension_ * hash_bitwidth];
-  GenerateHash(hash_vector, (unsigned int)dimension_, hash_bitwidth);
-  for (unsigned int i = 1; i < hash_bitwidth; i++) {
-    std::cout << dist_fast->DistanceInnerProduct::compare(hash_vector, &hash_vector[dimension_ * i], dimension_) << std::endl;
-//    for (unsigned int j = 0; j < 128; j++) {
-//      std::cout << hash_vector[i * dimension_ + j] << " ";
-//    }
-//    std::cout << std::endl << std::endl;
-  }
-  std::cout << std::endl;
-  delete hash_vector;
 #endif
-//  auto seed_end = std::chrono::high_resolution_clock::now();
-//  time_elapsed += (seed_end - seed_start);
+#ifdef THETA_GUIDED_SEARCH
+//  unsigned int hash_bitwidth = (unsigned int)dimension_;
+//  float* hash_vector = new float[dimension_ * hash_bitwidth];
+//  GenerateHash(hash_vector, (unsigned int)dimension_, hash_bitwidth);
+//  for (unsigned int i = 1; i < hash_bitwidth; i++) {
+//    std::cout << dist_fast->DistanceInnerProduct::compare(hash_vector, &hash_vector[dimension_ * i], dimension_) << std::endl;
+//  }
+//  std::cout << std::endl;
+#endif
   while (k < (int)L) {
     int nk = L;
 #ifdef GET_MISS_TRAVERSE
@@ -620,27 +615,52 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
       for (unsigned int m = 0; m < MaxM; ++m) {
         unsigned int id = neighbors[m];
         float* vertex_to_query = new float[dimension_];
-        float* vertex_to_neighbor = new float[dimension_];
+//        float* vertex_to_neighbor = new float[dimension_];
         float* vertex = (float *)(opt_graph_ + node_size * n + sizeof(float));
-        float* neighbor = (float *)(opt_graph_ + node_size * id + sizeof(float));
+//        float* neighbor = (float *)(opt_graph_ + node_size * id + sizeof(float));
         for (unsigned int tmp = 0; tmp < dimension_; tmp++) {
           vertex_to_query[tmp] = query[tmp] - vertex[tmp];
-          vertex_to_neighbor[tmp] = neighbor[tmp] - vertex[tmp];
+//          vertex_to_neighbor[tmp] = neighbor[tmp] - vertex[tmp];
         }
-        float inner_product = dist_fast->DistanceInnerProduct::compare(vertex_to_query, vertex_to_neighbor, (unsigned)dimension_);
-        float query_abs = sqrt(dist_fast->norm(vertex_to_query, dimension_));
-        float neighbor_abs = sqrt(dist_fast->norm(vertex_to_neighbor, dimension_));
-        double theta = acos(inner_product / (query_abs * neighbor_abs)) * 180.0 / 3.1456265;
+         
+        bool* hashed_vertex_to_query = new bool[dimension_];
+//        bool* hashed_vertex_to_neighbor = new bool[dimension_];
+        float approximate_theta = 0.0;
+        for (unsigned int tmp = 0; tmp < hash_bitwidth; tmp++) {
+          hashed_vertex_to_query[tmp] = dist_fast->DistanceInnerProduct::compare(vertex_to_query, &hash_vector[dimension_ * tmp], dimension_) > 0 ? 1 : 0;
+//          hashed_vertex_to_neighbor[tmp] = dist_fast->DistanceInnerProduct::compare(vertex_to_neighbor, &hash_vector[dimension_ * tmp], dimension_) > 0 ? 1 : 0;
+          unsigned int max_neighbors = (node_size - data_len) / sizeof(unsigned int) - 1;
+          approximate_theta += (hashed_vertex_to_query[tmp] ^ hash_to_neighbor[(n * max_neighbors + m) * hash_bitwidth + tmp]) ? 1.0 : 0.0;
+        }
+//        for (unsigned int tmp = 0; tmp < hash_bitwidth; tmp++) {
+//          std::cout << hashed_vertex_to_query[tmp] << " ";
+//        }
+//        std::cout << std::endl;
+//        for (unsigned int tmp = 0; tmp < hash_bitwidth; tmp++) {
+//          std::cout << hashed_vertex_to_neighbor[tmp] << " ";
+//        }
+          approximate_theta = approximate_theta / hash_bitwidth * 180.0;
+//        std::cout << approximate_theta << std::endl;
+//        std::cout << std::endl;
+//        std::cout << std::endl;
+
+//        float inner_product = dist_fast->DistanceInnerProduct::compare(vertex_to_query, vertex_to_neighbor, (unsigned)dimension_);
+//        float query_abs = sqrt(dist_fast->norm(vertex_to_query, dimension_));
+//        float neighbor_abs = sqrt(dist_fast->norm(vertex_to_neighbor, dimension_));
+//        double theta = acos(inner_product / (query_abs * neighbor_abs)) * 180.0 / 3.1456265;
 //        std::cout << "theta: " << theta << std::endl;
 //        std::cout << "inner_product: " << inner_product << std::endl;
         delete vertex_to_query;
-        delete vertex_to_neighbor;
-        if (theta >= 80.0) {
+//        delete vertex_to_neighbor;
+        delete hashed_vertex_to_query;
+//        delete hashed_vertex_to_neighbor;
+        if (approximate_theta >= 90.0) {
 //        if (inner_product < 0) {
           local_far_neighbors++;
           guided_flag[m] = false;
         }
         else guided_flag[m] = true;
+//        guided_flag[m] = true;
       }
 #endif
 //      auto traverse_start = std::chrono::high_resolution_clock::now();
@@ -723,7 +743,9 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
   total_traverse_miss += query_traverse_miss;
 //  printf("[Query_summary] # of traversed: %u, # of invalid: %u, ratio: %.2f%%\n", query_traverse, query_traverse_miss, (float)query_traverse_miss / query_traverse * 100);
 #endif
-//  printf("\n\n");
+#ifdef THETA_GUIDED_SEARCH
+  delete hash_vector;
+#endif
   nth_query++;
 }
 
@@ -944,5 +966,32 @@ void IndexNSG::GenerateHash (float* hash_vector, unsigned int hash_dim, unsigned
       }
     }
   }
+}
+void IndexNSG::GenerateHashtoNeighbor () {
+  DistanceFastL2* dist_fast = (DistanceFastL2*) distance_;
+  unsigned int max_neighbors = (node_size - data_len) / sizeof(unsigned int) - 1;
+  hash_to_neighbor = new bool[nd_ * max_neighbors * hash_bitwidth];
+  for (unsigned int i = 0; i < nd_; i++) {
+    unsigned int* neighbors = (unsigned int*)(opt_graph_ + node_size * i + data_len);
+    unsigned int MaxM = *neighbors;
+    neighbors++;
+
+    for (unsigned int j = 0; j < MaxM; j++) {
+      unsigned int id = neighbors[j];
+      float* vertex_to_neighbor = new float[dimension_];
+      float* vertex = (float *)(opt_graph_ + node_size * i + sizeof(float));
+      float* neighbor = (float *)(opt_graph_ + node_size * id + sizeof(float));
+      for (unsigned int tmp = 0; tmp < dimension_; tmp++) {
+        vertex_to_neighbor[tmp] = neighbor[tmp] - vertex[tmp];
+      }
+      for (unsigned int tmp = 0; tmp < hash_bitwidth; tmp++) {
+        hash_to_neighbor[(i * max_neighbors + j) * hash_bitwidth + tmp] = dist_fast->DistanceInnerProduct::compare(vertex_to_neighbor, &hash_vector[dimension_ * tmp], dimension_) > 0 ? 1 : 0;
+      }
+      delete vertex_to_neighbor;
+    }
+  }
+}
+void IndexNSG::DeallocateHashtoNeighbor () {
+  delete hash_to_neighbor;
 }
 }
