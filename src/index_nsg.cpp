@@ -606,54 +606,55 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
       unsigned MaxM = *neighbors;
       neighbors++;
      
-      for (unsigned m = 0; m < MaxM; ++m)
+      for (unsigned m = 0; m < MaxM; ++m) 
         _mm_prefetch(opt_graph_ + node_size * neighbors[m], _MM_HINT_T0);
+
 //      auto neighbor_prefetch_end = std::chrono::high_resolution_clock::now();
 //      time_elapsed += (neighbor_prefetch_end - neighbor_prefetch_start);
 #ifdef THETA_GUIDED_SEARCH
       bool guided_flag[MaxM];
       for (unsigned int m = 0; m < MaxM; ++m) {
-        unsigned int id = neighbors[m];
+        unsigned int max_neighbors = (node_size - data_len) / sizeof(unsigned int) - 1;
+        for (unsigned int iter = 0; iter < hash_bitwidth / 32; iter++) {
+          _mm_prefetch(&hash_to_neighbor[(n * max_neighbors + m) * hash_bitwidth / 32 + iter], _MM_HINT_T0);
+        }
+//        unsigned int id = neighbors[m];
         float* vertex_to_query = new float[dimension_];
-//        float* vertex_to_neighbor = new float[dimension_];
         float* vertex = (float *)(opt_graph_ + node_size * n + sizeof(float));
-//        float* neighbor = (float *)(opt_graph_ + node_size * id + sizeof(float));
+#ifdef __AVX__
+        unsigned int D = (dimension_ + 7) & ~7U;
+        unsigned int DR = D % 8;
+        unsigned int DD = D - DR;
+        __m256 tmp0, tmp1, tmp2, tmp3;
+        for (unsigned int i = 0; i < DD; i += 16) {
+          tmp0 = _mm256_loadu_ps(&vertex[i]);
+          tmp1 = _mm256_loadu_ps(&query[i]);
+          tmp1 = _mm256_sub_ps(tmp1, tmp0);
+          _mm256_storeu_ps(&vertex_to_query[i], tmp1);
+          
+          tmp2 = _mm256_loadu_ps(&vertex[i + 8]);
+          tmp3 = _mm256_loadu_ps(&query[i + 8]);
+          tmp3 = _mm256_sub_ps(tmp3, tmp2);
+          _mm256_storeu_ps(&vertex_to_query[i + 8], tmp3);
+        }
+#else
         for (unsigned int tmp = 0; tmp < dimension_; tmp++) {
           vertex_to_query[tmp] = query[tmp] - vertex[tmp];
-//          vertex_to_neighbor[tmp] = neighbor[tmp] - vertex[tmp];
         }
-         
-        bool* hashed_vertex_to_query = new bool[dimension_];
-//        bool* hashed_vertex_to_neighbor = new bool[dimension_];
+#endif
+        auto test_start = std::chrono::high_resolution_clock::now(); 
         float approximate_theta = 0.0;
-        for (unsigned int tmp = 0; tmp < hash_bitwidth; tmp++) {
-          hashed_vertex_to_query[tmp] = dist_fast->DistanceInnerProduct::compare(vertex_to_query, &hash_vector[dimension_ * tmp], dimension_) > 0 ? 1 : 0;
-//          hashed_vertex_to_neighbor[tmp] = dist_fast->DistanceInnerProduct::compare(vertex_to_neighbor, &hash_vector[dimension_ * tmp], dimension_) > 0 ? 1 : 0;
-          unsigned int max_neighbors = (node_size - data_len) / sizeof(unsigned int) - 1;
-          approximate_theta += (hashed_vertex_to_query[tmp] ^ hash_to_neighbor[(n * max_neighbors + m) * hash_bitwidth + tmp]) ? 1.0 : 0.0;
+        for (unsigned int tmp = 0; tmp < hash_bitwidth / 32; tmp++) {
+          unsigned int hashed_vertex_to_query = 0;
+          for (unsigned int bit_count = 0; bit_count < 32; bit_count++) {
+            hashed_vertex_to_query = hashed_vertex_to_query << 1;
+            hashed_vertex_to_query = hashed_vertex_to_query | (dist_fast->DistanceInnerProduct::compare(vertex_to_query, &hash_vector[dimension_ * (32 * tmp + bit_count)], dimension_) > 0 ? 1 : 0);
+          }
+          approximate_theta += __builtin_popcount(hashed_vertex_to_query ^ hash_to_neighbor[(n * max_neighbors + m) * hash_bitwidth / 32 + tmp]);
         }
-//        for (unsigned int tmp = 0; tmp < hash_bitwidth; tmp++) {
-//          std::cout << hashed_vertex_to_query[tmp] << " ";
-//        }
-//        std::cout << std::endl;
-//        for (unsigned int tmp = 0; tmp < hash_bitwidth; tmp++) {
-//          std::cout << hashed_vertex_to_neighbor[tmp] << " ";
-//        }
-          approximate_theta = approximate_theta / hash_bitwidth * 180.0;
-//        std::cout << approximate_theta << std::endl;
-//        std::cout << std::endl;
-//        std::cout << std::endl;
-
-//        float inner_product = dist_fast->DistanceInnerProduct::compare(vertex_to_query, vertex_to_neighbor, (unsigned)dimension_);
-//        float query_abs = sqrt(dist_fast->norm(vertex_to_query, dimension_));
-//        float neighbor_abs = sqrt(dist_fast->norm(vertex_to_neighbor, dimension_));
-//        double theta = acos(inner_product / (query_abs * neighbor_abs)) * 180.0 / 3.1456265;
-//        std::cout << "theta: " << theta << std::endl;
-//        std::cout << "inner_product: " << inner_product << std::endl;
+        approximate_theta = approximate_theta / hash_bitwidth * 180.0;
         delete vertex_to_query;
-//        delete vertex_to_neighbor;
-        delete hashed_vertex_to_query;
-//        delete hashed_vertex_to_neighbor;
+//        std::cout << approximate_theta << std::endl;
         if (approximate_theta >= 90.0) {
 //        if (inner_product < 0) {
           local_far_neighbors++;
@@ -661,6 +662,8 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
         }
         else guided_flag[m] = true;
 //        guided_flag[m] = true;
+        auto test_end = std::chrono::high_resolution_clock::now();
+        time_elapsed += (test_end - test_start);
       }
 #endif
 //      auto traverse_start = std::chrono::high_resolution_clock::now();
@@ -875,7 +878,7 @@ void IndexNSG::GetAllVectors() {
   if (!all_vector_flag) {
     for (unsigned i = 0; i < nd_; i++) {
       float* vertex = (float*)(opt_graph_ + node_size * i);
-      float norm = *vertex;
+//      float norm = *vertex;
       vertex++;
       for (unsigned j = 0; j < dimension_; j++) {
         printf("%f ", vertex[j]); 
@@ -941,36 +944,47 @@ void IndexNSG::GetMinMaxElement() {
 }
 
 // SJ: For SRP
-void IndexNSG::GenerateHash (float* hash_vector, unsigned int hash_dim, unsigned int hash_bitwidth) {
+void IndexNSG::GenerateHash (char* file_name, unsigned int wanted_hash_bitwidth) {
   DistanceFastL2* dist_fast = (DistanceFastL2*) distance_;
   std::normal_distribution<float> norm_dist (0.0, 1.0);
   std::mt19937 gen(rand());
+  hash_bitwidth = wanted_hash_bitwidth;
+  hash_vector = new float[dimension_ * hash_bitwidth];
   float hash_vector_norm[hash_bitwidth - 1];
 
-  for (unsigned int dim = 0; dim < hash_dim; dim++) { // Random generated vector
+  std::cout << "GenerateHash" << std::endl;
+  for (unsigned int dim = 0; dim < dimension_; dim++) { // Random generated vector
     hash_vector[dim] = norm_dist(gen);
   }
-  hash_vector_norm[0] = dist_fast->norm(hash_vector, hash_dim);
+  hash_vector_norm[0] = dist_fast->norm(hash_vector, dimension_);
 
   for (unsigned int hash_col = 1; hash_col < hash_bitwidth; hash_col++) { // Iterate to generate vectors orthogonal to 0th column
-    for (unsigned int dim = 0; dim < hash_dim; dim++) { // Random generated vector
-       hash_vector[hash_col * hash_dim + dim] = norm_dist(gen);
+    for (unsigned int dim = 0; dim < dimension_; dim++) { // Random generated vector
+       hash_vector[hash_col * dimension_ + dim] = norm_dist(gen);
     }
-    hash_vector_norm[hash_col] = dist_fast->norm(&hash_vector[hash_col * hash_dim], hash_dim);
+    hash_vector_norm[hash_col] = dist_fast->norm(&hash_vector[hash_col * dimension_], dimension_);
 
     // Gram-schmidt process
     for (unsigned int compare_col = 0; compare_col < hash_col; compare_col++) {
-      float inner_product_between_hash = dist_fast->DistanceInnerProduct::compare(&hash_vector[hash_col * hash_dim], &hash_vector[compare_col * hash_dim], (unsigned)hash_dim);
-      for (unsigned int dim = 0; dim < hash_dim; dim++) {
-        hash_vector[hash_col * hash_dim + dim] -= (inner_product_between_hash / hash_vector_norm[compare_col] * hash_vector[compare_col * hash_dim + dim]);
+      float inner_product_between_hash = dist_fast->DistanceInnerProduct::compare(&hash_vector[hash_col * dimension_], &hash_vector[compare_col * dimension_], (unsigned)dimension_);
+      for (unsigned int dim = 0; dim < dimension_; dim++) {
+        hash_vector[hash_col * dimension_ + dim] -= (inner_product_between_hash / hash_vector_norm[compare_col] * hash_vector[compare_col * dimension_ + dim]);
       }
     }
   }
+
+  FILE* file_hash_vector = fopen(file_name, "w");
+  fprintf(file_hash_vector, "%d\n", hash_bitwidth);
+  for (unsigned int i = 0; i < dimension_ * hash_bitwidth; i++)
+    fprintf(file_hash_vector, "%f ", hash_vector[i]);
+  fclose(file_hash_vector);
 }
-void IndexNSG::GenerateHashtoNeighbor () {
+void IndexNSG::GenerateHashtoNeighbor (char* file_name) {
   DistanceFastL2* dist_fast = (DistanceFastL2*) distance_;
   unsigned int max_neighbors = (node_size - data_len) / sizeof(unsigned int) - 1;
-  hash_to_neighbor = new bool[nd_ * max_neighbors * hash_bitwidth];
+  hash_to_neighbor = new unsigned int[nd_ * max_neighbors * hash_bitwidth / sizeof(unsigned int)];
+
+  std::cout << "GenerateHashtoNeighbor" << std::endl;
   for (unsigned int i = 0; i < nd_; i++) {
     unsigned int* neighbors = (unsigned int*)(opt_graph_ + node_size * i + data_len);
     unsigned int MaxM = *neighbors;
@@ -984,14 +998,73 @@ void IndexNSG::GenerateHashtoNeighbor () {
       for (unsigned int tmp = 0; tmp < dimension_; tmp++) {
         vertex_to_neighbor[tmp] = neighbor[tmp] - vertex[tmp];
       }
-      for (unsigned int tmp = 0; tmp < hash_bitwidth; tmp++) {
-        hash_to_neighbor[(i * max_neighbors + j) * hash_bitwidth + tmp] = dist_fast->DistanceInnerProduct::compare(vertex_to_neighbor, &hash_vector[dimension_ * tmp], dimension_) > 0 ? 1 : 0;
+      for (unsigned int tmp = 0; tmp < hash_bitwidth / 32; tmp++) {
+        unsigned int hash_to_neighbor_temp = 0;
+        for (unsigned int bit_count = 0; bit_count < 32; bit_count++) {
+          hash_to_neighbor_temp = hash_to_neighbor_temp << 1;
+          hash_to_neighbor_temp = hash_to_neighbor_temp | (dist_fast->DistanceInnerProduct::compare(vertex_to_neighbor, &hash_vector[dimension_ * (32 * tmp + bit_count)], dimension_) > 0 ? 1 : 0);
+        }
+        hash_to_neighbor[(i * max_neighbors + j) * hash_bitwidth / 32 + tmp] = hash_to_neighbor_temp;
       }
       delete vertex_to_neighbor;
     }
   }
+
+  FILE* file_hash_to_neighbor = fopen(file_name, "w");
+  for (unsigned int i = 0; i < nd_; i++) {
+    unsigned int MaxM = *(opt_graph_ + node_size * i + data_len);
+    fprintf(file_hash_to_neighbor, "%u\n", MaxM);
+
+    for (unsigned int j = 0; j < MaxM * hash_bitwidth / 32; j++) {
+      fprintf(file_hash_to_neighbor, "%x ", hash_to_neighbor[i * max_neighbors * hash_bitwidth / 32 + j]);
+    }
+    fprintf(file_hash_to_neighbor, "\n");
+  }
+  fclose(file_hash_to_neighbor);
 }
 void IndexNSG::DeallocateHashtoNeighbor () {
   delete hash_to_neighbor;
+}
+bool IndexNSG::LoadHash (char* file_name, unsigned int wanted_hash_bitwidth) {
+  FILE* file_hash_vector = fopen(file_name, "r");
+
+  if (file_hash_vector != NULL) {
+    fscanf(file_hash_vector, "%u", &hash_bitwidth);
+    if (wanted_hash_bitwidth != hash_bitwidth) {
+      fclose(file_hash_vector);
+      return false;
+    }
+
+    hash_vector = new float[dimension_ * hash_bitwidth];
+    for (unsigned int i = 0; i < dimension_ * hash_bitwidth; i++)
+      fscanf(file_hash_vector, "%f", &hash_vector[i]);
+    fclose(file_hash_vector);
+    return true;
+  }
+  else {
+//    fclose(file_hash_vector);
+    return false;
+  }
+}
+bool IndexNSG::LoadHashtoNeighbor (char* file_name) {
+  FILE* file_hash_to_neighbor = fopen(file_name, "r");
+
+  if (file_hash_to_neighbor != NULL) {
+    unsigned int max_neighbors = (node_size - data_len) / sizeof(unsigned int) - 1;
+    hash_to_neighbor = new unsigned int[nd_ * max_neighbors * hash_bitwidth / sizeof(unsigned int)];
+    for (unsigned int i = 0; i < nd_; i++) {
+      unsigned int MaxM;
+      fscanf(file_hash_to_neighbor, "%u", &MaxM);
+      for (unsigned int j = 0; j < MaxM * hash_bitwidth / 32; j++) {
+        fscanf(file_hash_to_neighbor, "%x", &hash_to_neighbor[i * max_neighbors * hash_bitwidth / 32 + j]);
+      }
+    }
+    fclose(file_hash_to_neighbor);
+    return true;
+  }
+  else {
+//    fclose(file_hash_to_neighbor);
+    return false;
+  }
 }
 }
