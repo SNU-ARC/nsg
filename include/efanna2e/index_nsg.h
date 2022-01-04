@@ -54,13 +54,13 @@ class IndexNSG : public Index {
 
   // SJ: For SRP
   unsigned int hash_bitwidth;
-  float* hash_vector;
-  void GenerateHash (char* file_name, unsigned int wanted_hash_bitwidth);
-  unsigned int* hash_to_neighbor;
-  void GenerateHashtoNeighbor (char* file_name);
-  void DeallocateHashtoNeighbor ();
-  bool LoadHash (char* file_name, unsigned int wanted_hash_bitwidth);
-  bool LoadHashtoNeighbor (char* file_name);
+  float* hash_function;
+  void GenerateHashFunction (char* file_name);
+  unsigned int* hash_vector;
+  void GenerateHashVector (char* file_name);
+  void DeallocateHashVector ();
+  bool LoadHashFunction (char* file_name);
+  bool LoadHashVector (char* file_name);
 
   protected:
     typedef std::vector<std::vector<unsigned > > CompactGraph;
