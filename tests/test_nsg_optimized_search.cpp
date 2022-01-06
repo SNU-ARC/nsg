@@ -98,15 +98,33 @@ int main(int argc, char** argv) {
 //    }
 //    std::cout << std::endl << std::endl;
 //  }
-  assert(query_dim == ground_truth_dim);
+//  assert(query_dim == ground_truth_dim);
 #endif
-
   // data_load = efanna2e::data_align(data_load, points_num, dim);//one must
   // align the data before build query_load = efanna2e::data_align(query_load,
   // query_num, query_dim);
   efanna2e::IndexNSG index(dim, points_num, efanna2e::FAST_L2, nullptr);
   index.Load(argv[3]);
   index.OptimizeGraph(data_load);
+
+  // SJ: For profile, related with #THETA_GUIDED_SEARCH flag
+  char* hash_function_name = new char[strlen(argv[3]) + strlen(".hash_function")];
+  char* hash_vector_name = new char[strlen(argv[3]) + strlen(".hash_vector")];
+  strcpy(hash_function_name, argv[3]);
+  strcat(hash_function_name, ".hash_function");
+  strcpy(hash_vector_name, argv[3]);
+  strcat(hash_vector_name, ".hash_vector");
+  index.hash_bitwidth = 32;
+  if (index.LoadHashFunction(hash_function_name)) {
+    if (!index.LoadHashVector(hash_vector_name))
+      index.GenerateHashVector(hash_vector_name);
+  }
+  else {
+    index.GenerateHashFunction(hash_function_name);
+    index.GenerateHashVector(hash_vector_name);
+  }
+  delete hash_function_name;
+  delete hash_vector_name;
 
   efanna2e::Parameters paras;
   paras.Set<unsigned>("L_search", L);
@@ -123,6 +141,7 @@ int main(int argc, char** argv) {
   }
   auto e = std::chrono::high_resolution_clock::now();
   diff = e - s;
+  std::cout << "test time: " << index.time_elapsed.count() << std::endl;
   std::cout << "search time: " << diff.count() << "\n";
 
   save_result(argv[6], res);
@@ -146,6 +165,7 @@ int main(int argc, char** argv) {
   }
   std::cout << (float)topk_hit / (query_num * K) * 100 << "%" << std::endl;
 #endif
+  index.DeallocateHashVector();
 
   return 0;
 }

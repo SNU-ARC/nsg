@@ -574,15 +574,6 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
   unsigned int query_traverse = 0;
   unsigned int query_traverse_miss = 0;
 #endif
-#ifdef THETA_GUIDED_SEARCH
-//  unsigned int hash_bitwidth = (unsigned int)dimension_;
-//  float* hash_vector = new float[dimension_ * hash_bitwidth];
-//  GenerateHash(hash_vector, (unsigned int)dimension_, hash_bitwidth);
-//  for (unsigned int i = 1; i < hash_bitwidth; i++) {
-//    std::cout << dist_fast->DistanceInnerProduct::compare(hash_vector, &hash_vector[dimension_ * i], dimension_) << std::endl;
-//  }
-//  std::cout << std::endl;
-#endif
   while (k < (int)L) {
     int nk = L;
 #ifdef GET_MISS_TRAVERSE
@@ -599,22 +590,26 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
 
       retset[k].flag = false;
       unsigned n = retset[k].id;
-//      auto neighbor_prefetch_start = std::chrono::high_resolution_clock::now();
 
       _mm_prefetch(opt_graph_ + node_size * n + data_len, _MM_HINT_T0);
       unsigned *neighbors = (unsigned *)(opt_graph_ + node_size * n + data_len);
       unsigned MaxM = *neighbors;
       neighbors++;
      
-//      auto neighbor_prefetch_end = std::chrono::high_resolution_clock::now();
-//      time_elapsed += (neighbor_prefetch_end - neighbor_prefetch_start);
+      for (unsigned m = 0; m < MaxM; ++m) 
+        _mm_prefetch(opt_graph_ + node_size * neighbors[m], _MM_HINT_T0);
+
+      float* vertex_to_query = new float[dimension_];
+      float* vertex = (float *)(opt_graph_ + node_size * n + sizeof(float));
+      float* vertex_to_neighbor = new float[dimension_];
+      for (unsigned m = 0; m < MaxM; ++m) {
+        unsigned id = neighbors[m];
+        if (flags[id]) continue;
 #ifdef THETA_GUIDED_SEARCH
-      bool guided_flag[MaxM];
-      for (unsigned int m = 0; m < MaxM; ++m) {
         auto test_start = std::chrono::high_resolution_clock::now(); 
-//        unsigned int id = neighbors[m];
-        float* vertex_to_query = new float[dimension_];
-        float* vertex = (float *)(opt_graph_ + node_size * n + sizeof(unsigned int));
+#ifdef EXACT_SEARCH
+        float* neighbor = (float *)(opt_graph_ + node_size * neighbors[m] + sizeof(float));
+#endif
 #ifdef __AVX__
         unsigned int D = (dimension_ + 7) & ~7U;
         unsigned int DR = D % 8;
@@ -631,12 +626,35 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
           tmp3 = _mm256_sub_ps(tmp3, tmp2);
           _mm256_storeu_ps(&vertex_to_query[i + 8], tmp3);
         }
+#ifdef EXACT_SEARCH
+        for (unsigned int i = 0; i < DD; i += 16) {
+          tmp0 = _mm256_loadu_ps(&vertex[i]);
+          tmp1 = _mm256_loadu_ps(&neighbor[i]);
+          tmp1 = _mm256_sub_ps(tmp1, tmp0);
+          _mm256_storeu_ps(&vertex_to_neighbor[i], tmp1);
+          
+          tmp2 = _mm256_loadu_ps(&vertex[i + 8]);
+          tmp3 = _mm256_loadu_ps(&neighbor[i + 8]);
+          tmp3 = _mm256_sub_ps(tmp3, tmp2);
+          _mm256_storeu_ps(&vertex_to_neighbor[i + 8], tmp3);
+        }
+#endif
 #else
         for (unsigned int tmp = 0; tmp < dimension_; tmp++) {
           vertex_to_query[tmp] = query[tmp] - vertex[tmp];
+#ifdef EXACT_SEARCH
+          vertex_to_neighbor[tmp] = neighbor[tmp] - vertex[tmp];
+#endif
         }
 #endif
         float approximate_theta = 0.0;
+#ifdef EXACT_SEARCH
+        float inner_product = dist_fast->DistanceInnerProduct::compare(vertex_to_query, vertex_to_neighbor, (unsigned)dimension_);
+        float query_abs = dist_fast->norm(vertex_to_query, dimension_);
+        float neighbor_abs = *(neighbor - 1);
+        approximate_theta = acos(inner_product / sqrt(query_abs * neighbor_abs)) * 180.0 / 3.1456265;
+//        std::cout << approximate_theta << std::endl;
+#else
         for (unsigned int tmp = 0; tmp < hash_bitwidth / (8 * sizeof(unsigned int)); tmp++) {
           unsigned int hashed_vertex_to_query = 0;
           for (unsigned int bit_count = 0; bit_count < (8 * sizeof(unsigned int)); bit_count++) {
@@ -645,29 +663,15 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
           }
           approximate_theta += __builtin_popcount(hashed_vertex_to_query ^ hash_vector[(n * width + m) * hash_bitwidth / (8 * sizeof(unsigned int)) + tmp]);
         }
+      
         approximate_theta = approximate_theta / hash_bitwidth * 180.0;
-        delete vertex_to_query;
-//        std::cout << approximate_theta << std::endl;
+#endif
         if (approximate_theta >= 80.0) {
-//        if (inner_product < 0) {
           local_far_neighbors++;
-          guided_flag[m] = false;
+          continue;
         }
-        else guided_flag[m] = true;
-//        guided_flag[m] = true;
         auto test_end = std::chrono::high_resolution_clock::now();
         time_elapsed += (test_end - test_start);
-      }
-#endif
-//      auto traverse_start = std::chrono::high_resolution_clock::now();
-      for (unsigned m = 0; m < MaxM; ++m) 
-        _mm_prefetch(opt_graph_ + node_size * neighbors[m], _MM_HINT_T0);
-
-      for (unsigned m = 0; m < MaxM; ++m) {
-        unsigned id = neighbors[m];
-        if (flags[id]) continue;
-#ifdef THETA_GUIDED_SEARCH
-        if (!guided_flag[m]) continue;
 #endif
         flags[id] = 1;
         ntraverse++;
@@ -702,6 +706,8 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
         // if(L+1 < retset.size()) ++L;
         if (r < nk) nk = r;
       }
+        delete vertex_to_query;
+        delete vertex_to_neighbor;
 //      auto traverse_end = std::chrono::high_resolution_clock::now();
 //      time_elapsed += (traverse_end - traverse_start);
 #ifdef GET_MISS_TRAVERSE

@@ -1,7 +1,10 @@
 #!/bin/bash
 export TIME=$(date '+%Y%m%d%H%M')
-K=(1 5 10 50 100)
-L_SIZE=(1 2)
+K=(10)
+L_SIZE=(3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20)
+#L_SIZE=(20 21 22 23 24 25 26 27 28 29 30)
+#K=(100)
+#L_SIZE=(2 3 4 5 6 7 8 9 10)
 
 if [ "${1}" == "sift1M" ]; then
   if [ ! -f "sift1M.nsg" ]; then

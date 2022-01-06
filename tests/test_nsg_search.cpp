@@ -41,7 +41,7 @@ void save_result(char* filename, std::vector<std::vector<unsigned> >& results) {
 int main(int argc, char** argv) {
   if (argc != 7) {
     std::cout << argv[0]
-              << " data_file query_file nsg_path search_L search_K result_path"
+              << " data_file query_file nsg_path search_L search_K result_path ground_truth_path"
               << std::endl;
     exit(-1);
   }
@@ -75,7 +75,7 @@ int main(int argc, char** argv) {
   std::vector<std::vector<unsigned> > res;
   for (unsigned i = 0; i < query_num; i++) {
     std::vector<unsigned> tmp(K);
-    index.Search(query_load + i * dim, data_load, K, paras, tmp.data());
+//    index.Search(query_load + i * dim, data_load, K, paras, tmp.data());
     res.push_back(tmp);
   }
   auto e = std::chrono::high_resolution_clock::now();
