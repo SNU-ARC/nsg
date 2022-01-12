@@ -114,7 +114,7 @@ int main(int argc, char** argv) {
   strcat(hash_function_name, ".hash_function");
   strcpy(hash_vector_name, argv[3]);
   strcat(hash_vector_name, ".hash_vector");
-  index.hash_bitwidth = 32;
+  index.hash_bitwidth = 64;
   if (index.LoadHashFunction(hash_function_name)) {
     if (!index.LoadHashVector(hash_vector_name))
       index.GenerateHashVector(hash_vector_name);
