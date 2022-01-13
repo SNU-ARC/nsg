@@ -572,11 +572,11 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
   std::sort(retset.begin(), retset.begin() + L);
   float query_norm = dist_fast->norm(query, dimension_);
   unsigned int* hashed_query = new unsigned int[hash_bitwidth / (8 * sizeof(unsigned int))];
-  for (unsigned int tmp = 0; tmp < hash_bitwidth / (8 * sizeof(unsigned int)); tmp++) {
-    hashed_query[tmp] = 0;
+  for (unsigned int num_integer = 0; num_integer < hash_bitwidth / (8 * sizeof(unsigned int)); num_integer++) {
+    hashed_query[num_integer] = 0;
     for (unsigned int bit_count = 0; bit_count < (8 * sizeof(unsigned int)); bit_count++) {
-      hashed_query[tmp] = hashed_query[tmp] >> 1;
-      hashed_query[tmp] = hashed_query[tmp] | (dist_fast->DistanceInnerProduct::compare(query, &hash_function[dimension_ * (32 * tmp + bit_count)], dimension_) > 0 ? 0x80000000 : 0);
+      hashed_query[num_integer] = hashed_query[num_integer] >> 1;
+      hashed_query[num_integer] = hashed_query[num_integer] | (dist_fast->DistanceInnerProduct::compare(query, &hash_function[dimension_ * (32 * num_integer + bit_count)], dimension_) > 0 ? 0x80000000 : 0);
     }
   }
 
@@ -602,17 +602,17 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
       retset[k].flag = false;
       unsigned n = retset[k].id;
 
-      _mm_prefetch(opt_graph_ + node_size * n + data_len, _MM_HINT_T0);
+//      _mm_prefetch(opt_graph_ + node_size * n + data_len, _MM_HINT_T0);
       unsigned *neighbors = (unsigned *)(opt_graph_ + node_size * n + data_len);
       unsigned MaxM = *neighbors;
       neighbors++;
      
       std::vector<std::pair<float, unsigned int> > theta_queue;
       for (unsigned m = 0; m < MaxM; ++m) { 
-        _mm_prefetch(opt_graph_ + node_size * neighbors[m], _MM_HINT_T0);
+//        _mm_prefetch(opt_graph_ + node_size * neighbors[m], _MM_HINT_T0);
 
 #ifdef THETA_GUIDED_SEARCH
-        auto test_start = std::chrono::high_resolution_clock::now();
+//        auto test_start = std::chrono::high_resolution_clock::now();
         float approximate_theta = 0.0;
 #ifdef EXACT_SEARCH
         float neighbor_norm = *(float*)(opt_graph_ + node_size * neighbors[m]);
@@ -624,36 +624,51 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
 #else
         unsigned int hashed_value[hash_bitwidth / (8 * sizeof(unsigned int))];
         unsigned int hamming_distance = 0;
+#ifdef __AVX__
+        for (unsigned int i = 0; i < hash_bitwidth; i += 256) {
+          _mm_prefetch(&hashed_query[i / 32], _MM_HINT_T2);
+          _mm_prefetch(&hash_vector[neighbors[m] * hash_bitwidth / (8 * sizeof(unsigned int)) + i / 32], _MM_HINT_T2);
+          __m256i hashed_query_avx, hash_vector_avx, hashed_value_avx;
+          hashed_query_avx = _mm256_loadu_si256((__m256i*)&hashed_query[i / 32]);
+          hash_vector_avx = _mm256_loadu_si256((__m256i*)&hash_vector[neighbors[m] * hash_bitwidth / (8 * sizeof(unsigned int)) + i / 32]);
+          hashed_value_avx = _mm256_xor_si256(hashed_query_avx, hash_vector_avx);
+          _mm256_storeu_si256((__m256i*)&hashed_value[i / 32], hashed_value_avx);
+        }
+        for (unsigned int i = 0; i < hash_bitwidth / (8 * sizeof(unsigned int)); i++) {
+          hamming_distance += __builtin_popcount(hashed_value[i]);
+        }
+#else
         for (unsigned int num_integer = 0; num_integer < hash_bitwidth / (8 * sizeof(unsigned int)); num_integer++) {
-          hashed_value[num_integer] = hashed_query[num_integer] ^ hash_vector[neighbors[m] * hash_bitwidth / (8 * sizeof(unsigned int))]; 
+          hashed_value[num_integer] = hashed_query[num_integer] ^ hash_vector[neighbors[m] * hash_bitwidth / (8 * sizeof(unsigned int)) + num_integer]; 
           hamming_distance += __builtin_popcount(hashed_value[num_integer]);
         }
-//        std::cout << hamming_distance << " " << approximate_theta << std::endl;
-        approximate_theta = approximate_theta / hash_bitwidth * 180.0;
+#endif
+        approximate_theta = hamming_distance * 180.0 / hash_bitwidth;
+//        std::cout << hamming_distance << " ";
         theta_queue.push_back(std::make_pair(approximate_theta, neighbors[m]));
 #endif
+//        std::cout << approximate_theta << std::endl;
 //        float threshold_theta;
 //        if (approximate_theta >= 40.0) {
 //          local_far_neighbors++;
 //          continue;
 //        }
-        auto test_end = std::chrono::high_resolution_clock::now();
-        time_elapsed += (test_end - test_start);
+//        auto test_end = std::chrono::high_resolution_clock::now();
+//        time_elapsed += (test_end - test_start);
 #endif
       }
       if (theta_queue.size() > 0)
         sort(theta_queue.begin(), theta_queue.end());
+#ifdef THETA_GUIDED_SEARCH
+      float threshold_percent = 0.3;
+      for (unsigned int m = 0; m < (unsigned int)ceil(MaxM * threshold_percent); m++) {
+        unsigned int id = theta_queue[m].second;
+//        std::cout << theta_iter << " " << theta_queue[theta_iter].second << " " << id << std::endl;
+#else
       for (unsigned m = 0; m < MaxM; ++m) {
         unsigned id = neighbors[m];
-        if (flags[id]) continue;
-#ifdef THETA_GUIDED_SEARCH
-        unsigned int theta_iter;
-        for (theta_iter = 0; (theta_iter < MaxM * 4 / 10) && (theta_queue[theta_iter].second != id); theta_iter++) {
-//          std::cout << theta_iter << " " << MaxM * 7 / 10 << " " << theta_queue[theta_iter].first << " " << theta_queue[theta_iter].second << std::endl;
-        }
-        if (theta_iter == MaxM * 4 / 10) continue;
-//        std::cout << theta_iter << " " << theta_queue[theta_iter].second << " " << id << std::endl;
 #endif
+        if (flags[id]) continue;
         flags[id] = 1;
         ntraverse++;
         float *data = (float *)(opt_graph_ + node_size * id);
@@ -674,11 +689,7 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
         local_traverse++;
         query_traverse++;
 #endif
-#ifdef THETA_GUIDED_SEARCH
-        Neighbor nn(id, dist, true, theta_queue[theta_iter].first);
-#else
         Neighbor nn(id, dist, true);
-#endif
         r = InsertIntoPool(retset.data(), L, nn);
 //        int r = InsertIntoPool(retset.data(), L, nn);
 
