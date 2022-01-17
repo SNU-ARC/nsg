@@ -1,11 +1,11 @@
 #!/bin/bash
 export TIME=$(date '+%Y%m%d%H%M')
 K=(10)
-L_SIZE=(3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20)
+#L_SIZE=(3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20)
 #L_SIZE=(20 21 22 23 24 25 26 27 28 29 30)
 #K=(100)
 #L_SIZE=(2 3 4 5 6 7 8 9 10)
-
+L_SIZE=(14)
 if [ "${1}" == "sift1M" ]; then
   if [ ! -f "sift1M.nsg" ]; then
     echo "Converting sift_200nn.graph kNN graph to sift.nsg"
@@ -51,7 +51,18 @@ elif [ "${1}" == "all" ]; then
       declare -i l=k*l_size
       echo "Perform kNN searching using NSG index (L${l}K${k})"
       ./test_nsg_optimized_search sift1M/sift_base.fvecs sift1M/sift_query.fvecs sift1M.nsg $l $k sift1M_nsg_result.ivecs \
-      sift1M/sift_groundtruth.ivecs > sift1M_search_L${l}K${k}_${2}.log
+      sift1M/sift_groundtruth.ivecs #> sift1M_search_L${l}K${k}_${2}.log
+      
+      # Test all config
+      # echo "************ baseline ************" #>> sift1M_search_L${l}K${k}_${2}.log
+      #  ./baseline sift1M/sift_base.fvecs sift1M/sift_query.fvecs sift1M.nsg $l $k sift1M_nsg_result.ivecs \
+      # sift1M/sift_groundtruth.ivecs #>> sift1M_search_L${l}K${k}_${2}.log
+      #echo "------------- exact --------------" #>> sift1M_search_L${l}K${k}_${2}.log
+      #./exact sift1M/sift_base.fvecs sift1M/sift_query.fvecs sift1M.nsg $l $k sift1M_nsg_result.ivecs \
+      #sift1M/sift_groundtruth.ivecs #>> sift1M_search_L${l}K${k}_${2}.log
+      # echo "============== ours ==============" #>> sift1M_search_L${l}K${k}_${2}.log
+      # ./ours sift1M/sift_base.fvecs sift1M/sift_query.fvecs sift1M.nsg $l $k sift1M_nsg_result.ivecs \
+      # sift1M/sift_groundtruth.ivecs #>> sift1M_search_L${l}K${k}_${2}.log
     done
   done
 #  echo "Perform kNN searching using NSG index"
