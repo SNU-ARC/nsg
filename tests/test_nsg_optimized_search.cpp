@@ -105,8 +105,13 @@ int main(int argc, char** argv) {
   // query_num, query_dim);
   efanna2e::IndexNSG index(dim, points_num, efanna2e::FAST_L2, nullptr);
   index.Load(argv[3]);
+#ifdef THETA_GUIDED_SEARCH
+  index.hash_bitwidth = 512;
+#else
+  index.hash_bitwidth = 0;
+#endif
   index.OptimizeGraph(data_load);
-
+#ifdef THETA_GUIDED_SEARCH
   // SJ: For profile, related with #THETA_GUIDED_SEARCH flag
   char* hash_function_name = new char[strlen(argv[3]) + strlen(".hash_function")];
   char* hash_vector_name = new char[strlen(argv[3]) + strlen(".hash_vector")];
@@ -114,18 +119,16 @@ int main(int argc, char** argv) {
   strcat(hash_function_name, ".hash_function");
   strcpy(hash_vector_name, argv[3]);
   strcat(hash_vector_name, ".hash_vector");
-  index.hash_bitwidth = 1024;
+
   if (index.LoadHashFunction(hash_function_name)) {
-    if (!index.LoadHashVector(hash_vector_name))
-      index.GenerateHashVector(hash_vector_name);
+    if (!index.LoadHashValue(hash_vector_name))
+      index.GenerateHashValue(hash_vector_name);
   }
   else {
     index.GenerateHashFunction(hash_function_name);
-    index.GenerateHashVector(hash_vector_name);
+    index.GenerateHashValue(hash_vector_name);
   }
-  delete hash_function_name;
-  delete hash_vector_name;
-
+#endif
   efanna2e::Parameters paras;
   paras.Set<unsigned>("L_search", L);
   paras.Set<unsigned>("P_search", L);
@@ -141,7 +144,13 @@ int main(int argc, char** argv) {
   }
   auto e = std::chrono::high_resolution_clock::now();
   diff = e - s;
-  std::cout << "test time: " << index.time_elapsed.count() << std::endl;
+#ifdef PROFILE
+  std::cout << "hash_xor time: " << index.profile_time[0].count() << std::endl;
+  std::cout << "hash_popcnt time: " << index.profile_time[2].count() << std::endl;
+  std::cout << "hash_sort time: " << index.profile_time[4].count() << std::endl;
+  std::cout << "dist time: " << index.profile_time[1].count() << std::endl;
+  std::cout << "query_hash time: " << index.profile_time[3].count() << std::endl;
+#endif
   std::cout << "search time: " << diff.count() << "\n";
 
   save_result(argv[6], res);
@@ -165,7 +174,11 @@ int main(int argc, char** argv) {
   }
   std::cout << (float)topk_hit / (query_num * K) * 100 << "%" << std::endl;
 #endif
+#ifdef THETA_GUIDED_SEARCH
+  delete[] hash_function_name;
+  delete[] hash_vector_name;
   index.DeallocateHashVector();
+#endif
 
   return 0;
 }

@@ -41,11 +41,12 @@ class IndexNSG : public Index {
       const Parameters &parameters,
       unsigned *indices);
   void OptimizeGraph(float* data);
+//  void OptimizeGraph(float* data);
 
   // SJ: For profile
   unsigned int total_traverse = 0;
   unsigned int total_traverse_miss = 0;
-  std::chrono::duration<double> time_elapsed = std::chrono::high_resolution_clock::now() - std::chrono::high_resolution_clock::now();
+  std::vector<std::chrono::duration<double> > profile_time;
   void GetNeighborList();
   void GetAllVectors();
   void CountZeroElements();
@@ -57,10 +58,10 @@ class IndexNSG : public Index {
   float* hash_function;
   void GenerateHashFunction (char* file_name);
   unsigned int* hash_vector;
-  void GenerateHashVector (char* file_name);
+  void GenerateHashValue (char* file_name);
   void DeallocateHashVector ();
   bool LoadHashFunction (char* file_name);
-  bool LoadHashVector (char* file_name);
+  bool LoadHashValue (char* file_name);
 
   protected:
     typedef std::vector<std::vector<unsigned > > CompactGraph;
@@ -101,6 +102,9 @@ class IndexNSG : public Index {
     size_t data_len;
     size_t neighbor_len;
     KNNGraph nnd_graph;
+
+    // SJ: Add hash values
+    size_t hash_len;
 };
 }
 
