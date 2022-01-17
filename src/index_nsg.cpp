@@ -576,15 +576,27 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
   auto query_hash_start = std::chrono::high_resolution_clock::now();
 #endif
   float query_norm = dist_fast->norm(query, dimension_);
-  unsigned int hash_integer_number = hash_bitwidth >> 5; // hash_bitwidth / 32
-  unsigned int* hashed_query = new unsigned int[hash_integer_number];
-  for (unsigned int num_integer = 0; num_integer < hash_integer_number; num_integer++) {
+  unsigned int hash_size = hash_bitwidth >> 5;
+  unsigned int* hashed_query = new unsigned int[hash_size];
+  for (unsigned int num_integer = 0; num_integer < hash_size; num_integer++) {
     hashed_query[num_integer] = 0;
     for (unsigned int bit_count = 0; bit_count < 32; bit_count++) {
       hashed_query[num_integer] = hashed_query[num_integer] >> 1;
       hashed_query[num_integer] = hashed_query[num_integer] | (dist_fast->DistanceInnerProduct::compare(query, &hash_function[dimension_ * (32 * num_integer + bit_count)], dimension_) > 0 ? 0x80000000 : 0);
     }
   }
+
+//  // [CHJ] char version
+//  size_t hash_size = hash_bitwidth >> 3;
+//  unsigned char * hashed_query = (unsigned char *)malloc(hash_size);
+//  for (unsigned int num_integer = 0; num_integer < hash_size; num_integer++) {
+//    unsigned char hash_val = 0;
+//    for (unsigned int i=0; i<8; i++) {
+//      hash_val = hash_val >> 1;
+//      hash_val = hash_val | (dist_fast->DistanceInnerProduct::compare(query, hash_function + dimension_ * (8 * num_integer + i), dimension_) > 0 ? 0x80 : 0);
+//    }
+//    hashed_query[num_integer] = hash_val;
+//  }
 #ifdef PROFILE
   auto query_hash_end = std::chrono::high_resolution_clock::now();
   profile_time[3] += (query_hash_end - query_hash_start);
@@ -622,7 +634,7 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
       std::vector<unsigned long long> theta_queue(MaxM, -1);
       for (unsigned m = 0; m < MaxM; ++m) {
         _mm_prefetch(opt_graph_ + node_size * neighbors[m], _MM_HINT_T0);
-        for (unsigned n = 0; n < hash_integer_number; n++)
+        for (unsigned n = 0; n < hash_size; n++)
           _mm_prefetch(opt_graph_ + node_size * neighbors[m] + data_len + neighbor_len + n * 4, _MM_HINT_T0);
       }
       for (unsigned m = 0; m < MaxM; ++m) { 
@@ -640,11 +652,11 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
         approximate_theta = acos(inner_product / sqrt(query_norm * neighbor_norm)) * 180.0 / 3.1456265;
         theta_queue.push_back(((unsigned long long)approximate_theta << 32) | id);
 #else
-        unsigned long long hamming_result[hash_integer_number >> 1];
+        unsigned long long hamming_result[hash_size >> 1];
         unsigned int hamming_distance = 0;
 #ifdef __AVX__
         unsigned int* hash_value_address = (unsigned int*)(opt_graph_ + node_size * id + data_len + neighbor_len);
-        for (unsigned int i = 0; i < hash_integer_number; i += 8) {
+        for (unsigned int i = 0; i < hash_size; i += 8) {
           __m256i hashed_query_avx, hash_value_avx, hamming_result_avx;
           hashed_query_avx = _mm256_loadu_si256((__m256i*)&hashed_query[i]);
           hash_value_avx = _mm256_loadu_si256((__m256i*)(hash_value_address + i));
@@ -691,6 +703,8 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
 #ifdef THETA_GUIDED_SEARCH
       for (unsigned int m = 0; m < (unsigned int)ceil(theta_queue_size * threshold_percent); m++) {
         unsigned int id = theta_queue[m] & 0xFFFFFFFF;
+        for (unsigned m = 0; m < MaxM; ++m)
+          _mm_prefetch(opt_graph_ + node_size * neighbors[m], _MM_HINT_T0);
 #else
       for (unsigned m = 0; m < MaxM; ++m) {
         unsigned id = neighbors[m];
@@ -756,6 +770,7 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
   total_traverse_miss += query_traverse_miss;
 //  printf("[Query_summary] # of traversed: %u, # of invalid: %u, ratio: %.2f%%\n", query_traverse, query_traverse_miss, (float)query_traverse_miss / query_traverse * 100);
 #endif
+  delete[] hashed_query;
   nth_query++;
 }
 
