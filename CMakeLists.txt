@@ -13,8 +13,10 @@ endif()
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-builtin-malloc -fno-builtin-calloc -fno-builtin-realloc -fno-builtin-free")
 #add_definitions (-std=c++11 -O3 -lboost -march=native -Wall -DINFO)
 #add_definitions (-std=c++11 -O3 -lboost -march=native -Wall -DINFO -DGET_MISS_TRAVERSE -DEVAL_RECALL)
-#add_definitions (-std=c++11 -O3 -lboost -march=native -Wall -DINFO -DTHETA_GUIDED_SEARCH -DGET_MISS_TRAVERSE -DEVAL_RECALL)
-add_definitions (-std=c++11 -O3 -lboost -march=native -Wall -DINFO -DTHETA_GUIDED_SEARCH -DGET_MISS_TRAVERSE -DEXACT_SEARCH -DEVAL_RECALL)
+add_definitions (-std=c++11 -O3 -lboost -march=native -Wall -DINFO -DTHETA_GUIDED_SEARCH -DGET_MISS_TRAVERSE -DEVAL_RECALL)
+#add_definitions (-std=c++11 -O3 -lboost -march=native -Wall -DINFO -DTHETA_GUIDED_SEARCH -DGET_MISS_TRAVERSE -DEXACT_SEARCH -DEVAL_RECALL)
 
 add_subdirectory(src)
 add_subdirectory(tests)
+
+
