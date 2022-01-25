@@ -100,9 +100,8 @@ int main(int argc, char** argv) {
 //  }
 //  assert(query_dim == ground_truth_dim);
 #endif
-  // data_load = efanna2e::data_align(data_load, points_num, dim);//one must
-  // align the data before build query_load = efanna2e::data_align(query_load,
-  // query_num, query_dim);
+  data_load = efanna2e::data_align(data_load, points_num, dim);
+  query_load = efanna2e::data_align(query_load, query_num, query_dim);
   efanna2e::IndexNSG index(dim, points_num, efanna2e::FAST_L2, nullptr);
   index.Load(argv[3]);
 #ifdef THETA_GUIDED_SEARCH
