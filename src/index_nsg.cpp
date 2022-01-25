@@ -650,7 +650,8 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
         float* neighbor_data = (float*)(opt_graph_ + node_size * id + sizeof(float));
         float inner_product = dist_fast->DistanceInnerProduct::compare(neighbor_data, query, dimension_);
         approximate_theta = acos(inner_product / sqrt(query_norm * neighbor_norm)) * 180.0 / 3.1456265;
-        theta_queue.push_back(((unsigned long long)approximate_theta << 32) | id);
+        theta_queue[theta_queue_size] = ((unsigned long long)approximate_theta << 32) | id;
+        theta_queue_size++;
 #else
         unsigned long long hamming_result[hash_size >> 1];
         unsigned int hamming_distance = 0;
