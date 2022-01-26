@@ -662,9 +662,16 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
           hashed_query_avx = _mm256_loadu_si256((__m256i*)&hashed_query[i]);
           hash_value_avx = _mm256_loadu_si256((__m256i*)(hash_value_address + i));
           hamming_result_avx = _mm256_xor_si256(hashed_query_avx, hash_value_avx);
+#ifdef __AVX512VPOPCNTDQ__
+          hamming_result_avx = _mm256_popcnt_epi64(hamming_result_avx);
+          _mm256_storeu_si256((__m256i*)&hamming_result[i >> 1], hamming_result_avx);
+          for (unsigned int j = (i >> 1); j < (i >> 1) + 4; j++)
+            hamming_distance += hamming_result[j];
+#else
           _mm256_storeu_si256((__m256i*)&hamming_result[i >> 1], hamming_result_avx);
           for (unsigned int j = (i >> 1); j < (i >> 1) + 4; j++)
             hamming_distance += _popcnt64(hamming_result[j]);
+#endif
         }
 #ifdef PROFILE
         auto hash_xor_end = std::chrono::high_resolution_clock::now();
