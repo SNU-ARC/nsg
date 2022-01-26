@@ -150,6 +150,8 @@ int main(int argc, char** argv) {
   std::cout << "dist time: " << index.profile_time[1].count() << std::endl;
   std::cout << "query_hash time: " << index.profile_time[3].count() << std::endl;
 #endif
+
+// Print result
   std::cout << "search time: " << diff.count() << "\n";
 
   save_result(argv[6], res);
@@ -173,6 +175,26 @@ int main(int argc, char** argv) {
   }
   std::cout << (float)topk_hit / (query_num * K) * 100 << "%" << std::endl;
 #endif
+
+// Print result for sweep
+// #ifdef EVAL_RECALL
+//   unsigned int topk_hit = 0;
+//   for (unsigned int i = 0; i < query_num; i++) {
+//     unsigned int topk_local_hit = 0;
+//     for (unsigned int j = 0; j < K; j++) {
+//       for (unsigned int k = 0; k < K; k++) {
+//         if (res[i][j] == *(ground_truth_load + i * ground_truth_dim + k)) {
+//           topk_hit++;
+//           break;
+//         }
+//       }
+//     }
+//   }
+//   std::cout << (float)topk_hit / (query_num * K) * 100 << std::endl;
+// #endif
+// printf("%u\n%u\n%.2f\n", index.total_traverse, index.total_traverse_miss, (float)index.total_traverse_miss / index.total_traverse * 100);
+// std::cout << diff.count() << std::endl;
+
 #ifdef THETA_GUIDED_SEARCH
   delete[] hash_function_name;
   delete[] hash_vector_name;
