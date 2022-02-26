@@ -63,6 +63,7 @@ class IndexNSG : public Index {
   bool LoadHashFunction (char* file_name);
   bool LoadHashValue (char* file_name);
   std::vector<HashNeighbor> theta_queue;
+  float threshold_percent;
 
   protected:
     typedef std::vector<std::vector<unsigned > > CompactGraph;
