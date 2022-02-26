@@ -66,9 +66,9 @@ void save_result(const char* filename,
 }
 
 int main(int argc, char** argv) {
-  if (argc != 8) {
+  if (argc != 10) {
     std::cout << argv[0]
-              << " data_file query_file nsg_path search_L search_K result_path ground_truth_path"
+              << " data_file query_file nsg_path search_L search_K result_path ground_truth_path hash_bitwidth threshold_percent"
               << std::endl;
     exit(-1);
   }
@@ -105,7 +105,8 @@ int main(int argc, char** argv) {
   efanna2e::IndexNSG index(dim, points_num, efanna2e::FAST_L2, nullptr);
   index.Load(argv[3]);
 #ifdef THETA_GUIDED_SEARCH
-  index.hash_bitwidth = 1024;
+  index.hash_bitwidth = (unsigned)atoi(argv[8]);
+  index.threshold_percent = (float)atof(argv[9]);
 #else
   index.hash_bitwidth = 0;
 #endif
