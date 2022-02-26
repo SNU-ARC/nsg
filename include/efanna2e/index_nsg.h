@@ -62,6 +62,7 @@ class IndexNSG : public Index {
   void DeallocateHashVector ();
   bool LoadHashFunction (char* file_name);
   bool LoadHashValue (char* file_name);
+  std::vector<HashNeighbor> theta_queue;
 
   protected:
     typedef std::vector<std::vector<unsigned > > CompactGraph;

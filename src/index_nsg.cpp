@@ -607,6 +607,9 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
   unsigned int query_traverse = 0;
   unsigned int query_traverse_miss = 0;
 #endif
+#ifdef THETA_GUIDED_SEARCH
+    std::vector<HashNeighbor> theta_queue(MaxM_ep);
+#endif
   while (k < (int)L) {
     int nk = L;
 #ifdef GET_MISS_TRAVERSE
@@ -629,15 +632,14 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
       unsigned MaxM = *neighbors;
       neighbors++;
      
-      float threshold_percent = 0.25;
+      float threshold_percent = 0.30;
       unsigned int theta_queue_size = 0;
-      std::vector<unsigned long long> theta_queue(MaxM, -1);
       for (unsigned m = 0; m < MaxM; ++m) {
         _mm_prefetch(opt_graph_ + node_size * neighbors[m], _MM_HINT_T0);
         for (unsigned n = 0; n < hash_size; n++)
           _mm_prefetch(opt_graph_ + node_size * neighbors[m] + data_len + neighbor_len + n * 4, _MM_HINT_T0);
       }
-      for (unsigned m = 0; m < MaxM; ++m) { 
+      for (unsigned m = 0; m < MaxM; ++m) {
         unsigned int id = neighbors[m];
         if (flags[id]) continue;
 #ifdef PROFILE
@@ -650,7 +652,9 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
         float* neighbor_data = (float*)(opt_graph_ + node_size * id + sizeof(float));
         float inner_product = dist_fast->DistanceInnerProduct::compare(neighbor_data, query, dimension_);
         approximate_theta = acos(inner_product / sqrt(query_norm * neighbor_norm)) * 180.0 / 3.1456265;
-        theta_queue[theta_queue_size] = ((unsigned long long)approximate_theta << 32) | id;
+        theta_queue[theta_queue_size].id = id;
+        theta_queue[theta_queue_size].distance = approximate_theta;
+//        theta_queue[theta_queue_size] = ((unsigned long long)approximate_theta << 32) | id;
         theta_queue_size++;
 #else
         unsigned long long hamming_result[hash_size >> 1];
@@ -686,8 +690,11 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
         }
 #endif
 //        approximate_theta = hamming_distance * 180.0 / hash_bitwidth;
-        unsigned long long cat_hamming_id = (((unsigned long long)hamming_distance << 32) | id);
+        HashNeighbor cat_hamming_id(id, hamming_distance);
         theta_queue[theta_queue_size] = cat_hamming_id;
+//        unsigned long long cat_hamming_id = (((unsigned long long)hamming_distance << 32) | id);
+//        theta_queue.push_back(cat_hamming_id);
+//        theta_queue[theta_queue_size] = cat_hamming_id;
         theta_queue_size++;
         
 #ifdef PROFILE
@@ -702,7 +709,7 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
       auto hash_sort_start = std::chrono::high_resolution_clock::now();
 #endif
       if (theta_queue.size() > 0)
-        sort(theta_queue.begin(), theta_queue.end());
+        sort(theta_queue.begin(), theta_queue.begin() + theta_queue_size);
 #ifdef PROFILE
       auto hash_sort_end = std::chrono::high_resolution_clock::now();
       profile_time[4] += (hash_sort_end - hash_sort_start);
@@ -710,9 +717,10 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
 #endif
 #ifdef THETA_GUIDED_SEARCH
       for (unsigned int m = 0; m < (unsigned int)ceil(theta_queue_size * threshold_percent); m++) {
-        unsigned int id = theta_queue[m] & 0xFFFFFFFF;
-        for (unsigned m = 0; m < MaxM; ++m)
-          _mm_prefetch(opt_graph_ + node_size * neighbors[m], _MM_HINT_T0);
+        unsigned int id = theta_queue[m].id;
+//        unsigned int id = theta_queue[m] & 0xFFFFFFFF;
+//        for (unsigned m = 0; m < MaxM; ++m)
+//          _mm_prefetch(opt_graph_ + node_size * neighbors[m], _MM_HINT_T0);
 #else
       for (unsigned m = 0; m < MaxM; ++m) {
         unsigned id = neighbors[m];
@@ -789,7 +797,9 @@ void IndexNSG::OptimizeGraph(float *data) {  // use after build or load
   neighbor_len = (width + 1) * sizeof(unsigned);
   hash_len = (hash_bitwidth >> 3); // SJ: Append hash_values
   node_size = data_len + neighbor_len + hash_len;
-  opt_graph_ = (char *)malloc(node_size * nd_);
+//  opt_graph_ = (char *)malloc(node_size * nd_);
+  unsigned int hash_function_size = dimension_ * hash_bitwidth * sizeof(float);
+  opt_graph_ = (char *)malloc(node_size * nd_ + hash_function_size);
   DistanceFastL2 *dist_fast = (DistanceFastL2 *)distance_;
   for (unsigned i = 0; i < nd_; i++) {
     char *cur_node_offset = opt_graph_ + i * node_size;
@@ -979,7 +989,8 @@ void IndexNSG::GenerateHashFunction (char* file_name) {
   DistanceFastL2* dist_fast = (DistanceFastL2*) distance_;
   std::normal_distribution<float> norm_dist (0.0, 1.0);
   std::mt19937 gen(rand());
-  hash_function = new float[dimension_ * hash_bitwidth];
+  hash_function = (float*)(opt_graph_ + node_size * nd_);
+//  hash_function = new float[dimension_ * hash_bitwidth];
   float hash_function_norm[hash_bitwidth - 1];
 
   std::cout << "GenerateHashFunction" << std::endl;
@@ -1052,7 +1063,8 @@ bool IndexNSG::LoadHashFunction (char* file_name) {
       return false;
     }
 
-    hash_function = new float[dimension_ * hash_bitwidth];
+    hash_function = (float*)(opt_graph_ + node_size * nd_);
+//    hash_function = new float[dimension_ * hash_bitwidth];
     file_hash_function.read((char*)hash_function, dimension_ * hash_bitwidth * sizeof(float));
     file_hash_function.close();
 

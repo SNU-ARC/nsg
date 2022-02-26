@@ -100,6 +100,19 @@ struct SimpleNeighbors{
   std::vector<SimpleNeighbor> pool;
 };
 
+// SJ: For hamming distance
+struct HashNeighbor{
+  unsigned id;
+  unsigned distance;
+
+  HashNeighbor() = default;
+  HashNeighbor(unsigned id, unsigned distance) : id{id}, distance{distance}{}
+
+  inline bool operator<(const HashNeighbor &other) const {
+      return distance < other.distance;
+  }
+};
+
 static inline int InsertIntoPool (Neighbor *addr, unsigned K, Neighbor nn) {
   // find the location to insert
   int left=0,right=K-1;

@@ -105,7 +105,7 @@ int main(int argc, char** argv) {
   efanna2e::IndexNSG index(dim, points_num, efanna2e::FAST_L2, nullptr);
   index.Load(argv[3]);
 #ifdef THETA_GUIDED_SEARCH
-  index.hash_bitwidth = 512;
+  index.hash_bitwidth = 1024;
 #else
   index.hash_bitwidth = 0;
 #endif
@@ -127,6 +127,7 @@ int main(int argc, char** argv) {
     index.GenerateHashFunction(hash_function_name);
     index.GenerateHashValue(hash_vector_name);
   }
+  index.theta_queue.reserve(60);
 #endif
   efanna2e::Parameters paras;
   paras.Set<unsigned>("L_search", L);
@@ -137,7 +138,7 @@ int main(int argc, char** argv) {
 
   auto s = std::chrono::high_resolution_clock::now();
   std::chrono::duration<double> diff;
-//#pragma omp parallel
+#pragma omp parallel for num_threads(1)
   for (unsigned i = 0; i < query_num; i++) {
     index.SearchWithOptGraph(query_load + i * dim, K, paras, res[i].data());
   }
@@ -176,7 +177,7 @@ int main(int argc, char** argv) {
 #ifdef THETA_GUIDED_SEARCH
   delete[] hash_function_name;
   delete[] hash_vector_name;
-  index.DeallocateHashVector();
+//  index.DeallocateHashVector();
 #endif
 
   return 0;
