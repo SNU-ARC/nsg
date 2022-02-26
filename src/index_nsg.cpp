@@ -608,7 +608,7 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
   unsigned int query_traverse_miss = 0;
 #endif
 #ifdef THETA_GUIDED_SEARCH
-    std::vector<HashNeighbor> theta_queue(MaxM_ep);
+//    std::vector<HashNeighbor> theta_queue(MaxM_ep);
 #endif
   while (k < (int)L) {
     int nk = L;
