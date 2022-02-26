@@ -632,7 +632,6 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
       unsigned MaxM = *neighbors;
       neighbors++;
      
-      float threshold_percent = 0.30;
       unsigned int theta_queue_size = 0;
       for (unsigned m = 0; m < MaxM; ++m) {
         _mm_prefetch(opt_graph_ + node_size * neighbors[m], _MM_HINT_T0);
@@ -692,9 +691,6 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
 //        approximate_theta = hamming_distance * 180.0 / hash_bitwidth;
         HashNeighbor cat_hamming_id(id, hamming_distance);
         theta_queue[theta_queue_size] = cat_hamming_id;
-//        unsigned long long cat_hamming_id = (((unsigned long long)hamming_distance << 32) | id);
-//        theta_queue.push_back(cat_hamming_id);
-//        theta_queue[theta_queue_size] = cat_hamming_id;
         theta_queue_size++;
         
 #ifdef PROFILE
@@ -708,7 +704,7 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
 #ifdef PROFILE
       auto hash_sort_start = std::chrono::high_resolution_clock::now();
 #endif
-      if (theta_queue.size() > 0)
+      if (theta_queue_size)
         sort(theta_queue.begin(), theta_queue.begin() + theta_queue_size);
 #ifdef PROFILE
       auto hash_sort_end = std::chrono::high_resolution_clock::now();
@@ -718,9 +714,6 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
 #ifdef THETA_GUIDED_SEARCH
       for (unsigned int m = 0; m < (unsigned int)ceil(theta_queue_size * threshold_percent); m++) {
         unsigned int id = theta_queue[m].id;
-//        unsigned int id = theta_queue[m] & 0xFFFFFFFF;
-//        for (unsigned m = 0; m < MaxM; ++m)
-//          _mm_prefetch(opt_graph_ + node_size * neighbors[m], _MM_HINT_T0);
 #else
       for (unsigned m = 0; m < MaxM; ++m) {
         unsigned id = neighbors[m];
@@ -731,7 +724,6 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
         float *data = (float *)(opt_graph_ + node_size * id);
         float norm = *data;
         data++;
-//        float dist = theta_queue[theta_iter].first;
         float dist = dist_fast->compare(query, data, norm, (unsigned)dimension_);
         if (dist >= retset[L - 1].distance) {
 #ifdef GET_MISS_TRAVERSE
