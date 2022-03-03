@@ -14,7 +14,7 @@ nsg_sift1M() {
       exit 1
     fi
   fi
-  echo "Perform kNN searching using NSG index (L${l}K${2})"
+  echo "Perform kNN searching using NSG index (sift1M_L${l}K${2})"
   sudo sh -c "echo 3 > /proc/sys/vm/drop_caches"
   ./test_nsg_optimized_search sift1M/sift_base.fvecs sift1M/sift_query.fvecs sift1M.nsg ${1} ${2} sift1M_nsg_result.ivecs \
     sift1M/sift_groundtruth.ivecs 512 0.25 > sift1M_search_L${1}K${2}_${3}.log
@@ -30,7 +30,7 @@ nsg_gist1M() {
       exit 1
     fi
   fi
-  echo "Perform kNN searching using NSG index (L${1}K${2})"
+  echo "Perform kNN searching using NSG index (gist1M_L${1}K${2})"
   sudo sh -c "echo 3 > /proc/sys/vm/drop_caches"
   ./test_nsg_optimized_search gist1M/gist_base.fvecs gist1M/gist_query.fvecs gist1M.nsg ${1} ${2} gist1M_nsg_result.ivecs \
     gist1M/gist_groundtruth.ivecs 1024 0.3 > gist1M_search_L${1}K${2}_${3}.log
