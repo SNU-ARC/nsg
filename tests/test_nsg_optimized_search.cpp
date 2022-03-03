@@ -155,6 +155,7 @@ int main(int argc, char** argv) {
 
 // Print result
   std::cout << "search time: " << diff.count() << "\n";
+  std::cout << "QPS: " << query_num / diff.count() << "\n";
 
   save_result(argv[6], res);
 
