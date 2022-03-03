@@ -507,7 +507,11 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
   std::vector<unsigned> init_ids(L);
   // std::mt19937 rng(rand());
   // GenRandom(rng, init_ids.data(), L, (unsigned) nd_);
-
+#ifdef THETA_GUIDED_SEARCH
+  for (unsigned int a = 0; a < (hash_bitwidth >> 5) * dimension_; a += 8) {
+    _mm_prefetch(&hash_function[a], _MM_HINT_T0);
+  }
+#endif
 #ifdef PROFILE
   // SJ: Profile_timer
   profile_time.push_back(std::chrono::high_resolution_clock::now() - std::chrono::high_resolution_clock::now()); // 0: hash_xor time
@@ -575,6 +579,7 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
 #ifdef PROFILE
   auto query_hash_start = std::chrono::high_resolution_clock::now();
 #endif
+#ifdef THETA_GUIDED_SEARCH
   float query_norm = dist_fast->norm(query, dimension_);
   unsigned int hash_size = hash_bitwidth >> 5;
   unsigned int* hashed_query = new unsigned int[hash_size];
@@ -585,6 +590,7 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
       hashed_query[num_integer] = hashed_query[num_integer] | (dist_fast->DistanceInnerProduct::compare(query, &hash_function[dimension_ * (32 * num_integer + bit_count)], dimension_) > 0 ? 0x80000000 : 0);
     }
   }
+#endif
 
 //  // [CHJ] char version
 //  size_t hash_size = hash_bitwidth >> 3;
@@ -635,8 +641,10 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
       unsigned int theta_queue_size = 0;
       for (unsigned m = 0; m < MaxM; ++m) {
         _mm_prefetch(opt_graph_ + node_size * neighbors[m], _MM_HINT_T0);
+#ifdef THETA_GUIDED_SEARCH
         for (unsigned n = 0; n < hash_size; n++)
           _mm_prefetch(opt_graph_ + node_size * neighbors[m] + data_len + neighbor_len + n * 4, _MM_HINT_T0);
+#endif
       }
       for (unsigned m = 0; m < MaxM; ++m) {
         unsigned int id = neighbors[m];
@@ -778,7 +786,9 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
   total_traverse_miss += query_traverse_miss;
 //  printf("[Query_summary] # of traversed: %u, # of invalid: %u, ratio: %.2f%%\n", query_traverse, query_traverse_miss, (float)query_traverse_miss / query_traverse * 100);
 #endif
+#ifdef THETA_GUIDED_SEARCH
   delete[] hashed_query;
+#endif
   nth_query++;
 }
 
@@ -787,11 +797,15 @@ void IndexNSG::OptimizeGraph(float *data) {  // use after build or load
   data_ = data;
   data_len = (dimension_ + 1) * sizeof(float);
   neighbor_len = (width + 1) * sizeof(unsigned);
+#ifdef THETA_GUIDED_SEARCH
   hash_len = (hash_bitwidth >> 3); // SJ: Append hash_values
   node_size = data_len + neighbor_len + hash_len;
-//  opt_graph_ = (char *)malloc(node_size * nd_);
   unsigned int hash_function_size = dimension_ * hash_bitwidth * sizeof(float);
   opt_graph_ = (char *)malloc(node_size * nd_ + hash_function_size);
+#else
+  node_size = data_len + neighbor_len;
+  opt_graph_ = (char *)malloc(node_size * nd_);
+#endif
   DistanceFastL2 *dist_fast = (DistanceFastL2 *)distance_;
   for (unsigned i = 0; i < nd_; i++) {
     char *cur_node_offset = opt_graph_ + i * node_size;

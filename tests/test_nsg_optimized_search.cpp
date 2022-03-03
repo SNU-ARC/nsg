@@ -141,7 +141,12 @@ int main(int argc, char** argv) {
   std::chrono::duration<double> diff;
 #pragma omp parallel for num_threads(1)
   for (unsigned i = 0; i < query_num; i++) {
-    index.SearchWithOptGraph(query_load + i * dim, K, paras, res[i].data());
+#ifdef THETA_GUIDED_SEARCH
+    for (unsigned int a = 0; a < (index.hash_bitwidth >> 5) * query_dim; a += 8) {
+      _mm_prefetch(&index.hash_function[a], _MM_HINT_T0);
+    }
+#endif
+   index.SearchWithOptGraph(query_load + i * dim, K, paras, res[i].data());
   }
   auto e = std::chrono::high_resolution_clock::now();
   diff = e - s;
