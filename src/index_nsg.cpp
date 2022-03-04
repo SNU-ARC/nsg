@@ -507,11 +507,6 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
   std::vector<unsigned> init_ids(L);
   // std::mt19937 rng(rand());
   // GenRandom(rng, init_ids.data(), L, (unsigned) nd_);
-#ifdef THETA_GUIDED_SEARCH
-  for (unsigned int a = 0; a < (hash_bitwidth >> 5) * dimension_; a += 8) {
-    _mm_prefetch(&hash_function[a], _MM_HINT_T0);
-  }
-#endif
 #ifdef PROFILE
   // SJ: Profile_timer
   profile_time.push_back(std::chrono::high_resolution_clock::now() - std::chrono::high_resolution_clock::now()); // 0: hash_xor time
