@@ -1,8 +1,9 @@
 #!/bin/bash
 export TIME=$(date '+%Y%m%d%H%M')
 K=(10)
-#L_SIZE=(40)
-L_SIZE=(20 30 40 50 60 70 80 90 100 110 120 130 140 150 160 170 180 190 200)
+L_SIZE=(120)
+#L_SIZE=(31 32 33 34 35 36 37 38 39)
+#L_SIZE=(20 30 40 50 60 70 80 90 100 110 120 130 140 150 160 170 180 190 200)
 
 nsg_sift1M() {
   if [ ! -f "sift1M.nsg" ]; then
@@ -36,6 +37,22 @@ nsg_gist1M() {
     gist1M/gist_groundtruth.ivecs 1024 0.3 > gist1M_search_L${1}K${2}_${3}.log
 }
 
+nsg_deep1M() {
+  if [ ! -f "deep1M.nsg" ]; then
+    echo "Converting deep1M_400nn.graph kNN graph to deep1M.nsg"
+    if [ -f "deep1M_400nn.graph" ]; then
+      ./test_nsg_index deep1M/deep1m_base.fvecs deep1M_400nn.graph 200 40 1000 deep1M.nsg > deep1M_index_${TIME}.log
+    else
+      echo "ERROR: deep1M_400nn.graph does not exist"
+      exit 1
+    fi
+  fi
+  echo "Perform kNN searching using NSG index (deep1M_L${1}K${2})"
+  sudo sh -c "echo 3 > /proc/sys/vm/drop_caches"
+  ./test_nsg_optimized_search deep1M/deep1m_base.fvecs deep1M/deep1m_query.fvecs deep1M.nsg ${1} ${2} deep1M_nsg_result.ivecs \
+    deep1M/deep1m_groundtruth.ivecs 512 0.3 > deep1M_search_L${1}K${2}_${3}.log
+}
+
 if [ "${1}" == "sift1M" ]; then
   for k in ${K[@]}; do
     for l_size in ${L_SIZE[@]}; do
@@ -50,14 +67,22 @@ elif [ "${1}" == "gist1M" ]; then
       nsg_gist1M ${l} ${k} ${2}
     done
   done
+elif [ "${1}" == "deep1M" ]; then
+  for k in ${K[@]}; do
+    for l_size in ${L_SIZE[@]}; do
+      declare -i l=l_size
+      nsg_deep1M ${l} ${k} ${2}
+    done
+  done
 elif [ "${1}" == "all" ]; then
   for k in ${K[@]}; do
     for l_size in ${L_SIZE[@]}; do
       declare -i l=l_size
       nsg_sift1M ${l} ${k} ${2}
       nsg_gist1M ${l} ${k} ${2}
+      nsg_deep1M ${l} ${k} ${2}
     done
   done
 else
-  echo "Please use either 'sift' or 'gist' as an argument"
+  echo "Please use either 'sift1M' or 'gist1M' or 'deep1M' or 'all' as an argument"
 fi
