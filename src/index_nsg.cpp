@@ -578,9 +578,14 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
   unsigned int* hashed_query = new unsigned int[hash_size];
   for (unsigned int num_integer = 0; num_integer < hash_size; num_integer++) {
     hashed_query[num_integer] = 0;
+    bool temp_bool[32];
     for (unsigned int bit_count = 0; bit_count < 32; bit_count++) {
-      hashed_query[num_integer] = hashed_query[num_integer] >> 1;
-      hashed_query[num_integer] = hashed_query[num_integer] | (dist_fast->DistanceInnerProduct::compare(query, &hash_function[dimension_ * (32 * num_integer + bit_count)], dimension_) > 0 ? 0x80000000 : 0);
+//      hashed_query[num_integer] = hashed_query[num_integer] >> 1;
+//      hashed_query[num_integer] = hashed_query[num_integer] | (dist_fast->DistanceInnerProduct::compare(query, &hash_function[dimension_ * (32 * num_integer + bit_count)], dimension_) > 0 ? 0x80000000 : 0);
+      temp_bool[bit_count] = (dist_fast->DistanceInnerProduct::compare(query, &hash_function[dimension_ * (32 * num_integer + bit_count)], dimension_) > 0 ? 0x80000000 : 0);
+    }
+    for (unsigned int bit_count = 0; bit_count < 32; bit_count++) {
+      hashed_query[num_integer] += (temp_bool[bit_count] << bit_count);
     }
   }
 #endif
