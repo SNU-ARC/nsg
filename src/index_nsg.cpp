@@ -678,12 +678,13 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
           _mm256_storeu_si256((__m256i*)&hamming_result[i >> 1], hamming_result_avx);
           for (unsigned int j = (i >> 1); j < (i >> 1) + 4; j++)
             hamming_distance += hamming_result[j];
+        }
 #else
           _mm256_storeu_si256((__m256i*)&hamming_result[i >> 1], hamming_result_avx);
-          for (unsigned int j = (i >> 1); j < (i >> 1) + 4; j++)
-            hamming_distance += _popcnt64(hamming_result[j]);
-#endif
         }
+        for (unsigned int i = 0; i < (hash_size >> 1); i++)
+          hamming_distance += _popcnt64(hamming_result[i]);
+#endif
 #else
         for (unsigned int num_integer = 0; num_integer < hash_bitwidth / (8 * sizeof(unsigned int)); num_integer++) {
           unsigned int* hash_value_address = (unsigned int*)(opt_graph_ + node_size * id + data_len + neighbor_len);
