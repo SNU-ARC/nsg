@@ -711,10 +711,27 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
             }
           }
         }
+//        if (hamming_distance > hamming_distance_max.distance && theta_queue_size > theta_queue_size_limit) {
+//          continue;
+//        }
+//        hamming_distance_max.distance = hamming_distance;
+//        HashNeighbor cat_hamming_id(id, hamming_distance);
+//        theta_queue[theta_queue_size] = cat_hamming_id;
+//        if (theta_queue_size < theta_queue_size_limit - 1) {
+//          theta_queue_size++;
+//        }
+//        else
+//          sort(theta_queue.begin(), theta_queue.begin() + theta_queue_size_limit);
 #endif
 
 #endif
       }
+//#ifdef THETA_GUIDED_SEARCH
+//      if (theta_queue_size > theta_queue_size_limit) {
+//        sort(theta_queue.begin(), theta_queue.begin() + theta_queue_size);
+//        theta_queue_size = (unsigned int)ceil(theta_queue_size * threshold_percent);
+//      }
+//#endif
 #ifdef PROFILE
       auto hash_approx_end = std::chrono::high_resolution_clock::now();
       profile_time[1] += (hash_approx_end - hash_approx_start);
