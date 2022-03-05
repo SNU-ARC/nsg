@@ -1,8 +1,9 @@
 #!/bin/bash
 export TIME=$(date '+%Y%m%d%H%M')
 K=(10)
-L_SIZE=(120)
-#L_SIZE=(31 32 33 34 35 36 37 38 39)
+#L_SIZE=(36)
+#L_SIZE=(31 32 33 34 35 36 37 38 39) # sift1M 95%
+L_SIZE=(51 52 53 54 55 56 57 58 59) # crawl/deep1M 95%
 #L_SIZE=(61 62 63 64 65 66 67 68 69)
 #L_SIZE=(20 30 40 50 60 70 80 90 100 110 120 130 140 150 160 170 180 190 200)
 #L_SIZE=(250 300 350 400 450 500 550 600 650 700 750 800 850 900 950 1000)
@@ -129,7 +130,8 @@ elif [ "${1}" == "all" ]; then
       nsg_sift1M ${l} ${k} ${2}
       nsg_gist1M ${l} ${k} ${2}
       nsg_deep1M ${l} ${k} ${2}
-      nsg_glove-100 ${l} ${k} ${2}
+#      nsg_glove-100 ${l} ${k} ${2}
+      nsg_crawl ${l} ${k} ${2}
     done
   done
 else
