@@ -509,11 +509,9 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
   // GenRandom(rng, init_ids.data(), L, (unsigned) nd_);
 #ifdef PROFILE
   // SJ: Profile_timer
-  profile_time.push_back(std::chrono::high_resolution_clock::now() - std::chrono::high_resolution_clock::now()); // 0: hash_xor time
-  profile_time.push_back(std::chrono::high_resolution_clock::now() - std::chrono::high_resolution_clock::now()); // 1: distance time
-  profile_time.push_back(std::chrono::high_resolution_clock::now() - std::chrono::high_resolution_clock::now()); // 2: hash_popcnt time
-  profile_time.push_back(std::chrono::high_resolution_clock::now() - std::chrono::high_resolution_clock::now()); // 3: query_hash time
-  profile_time.push_back(std::chrono::high_resolution_clock::now() - std::chrono::high_resolution_clock::now()); // 4: hash_sort time
+  profile_time.push_back(std::chrono::high_resolution_clock::now() - std::chrono::high_resolution_clock::now()); // 0: query_hash time
+  profile_time.push_back(std::chrono::high_resolution_clock::now() - std::chrono::high_resolution_clock::now()); // 1: hash_approx time
+  profile_time.push_back(std::chrono::high_resolution_clock::now() - std::chrono::high_resolution_clock::now()); // 2: dist time
 #endif
 
   boost::dynamic_bitset<> flags{nd_, 0};
@@ -600,7 +598,7 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
 //  }
 #ifdef PROFILE
   auto query_hash_end = std::chrono::high_resolution_clock::now();
-  profile_time[3] += (query_hash_end - query_hash_start);
+  profile_time[0] += (query_hash_end - query_hash_start);
 #endif
 
   int k = 0;
@@ -625,6 +623,9 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
 
     if (retset[k].flag) {
 
+#ifdef PROFILE
+      auto hash_approx_start = std::chrono::high_resolution_clock::now();
+#endif
       retset[k].flag = false;
       unsigned n = retset[k].id;
 
@@ -632,21 +633,21 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
       unsigned *neighbors = (unsigned *)(opt_graph_ + node_size * n + data_len);
       unsigned MaxM = *neighbors;
       neighbors++;
+#ifdef THETA_GUIDED_SEARCH
+      unsigned theta_queue_size_limit = (unsigned int)ceil(MaxM * threshold_percent);
+#endif
      
       unsigned int theta_queue_size = 0;
       for (unsigned m = 0; m < MaxM; ++m) {
         _mm_prefetch(opt_graph_ + node_size * neighbors[m], _MM_HINT_T0);
 #ifdef THETA_GUIDED_SEARCH
         for (unsigned n = 0; n < hash_size; n++)
-          _mm_prefetch(opt_graph_ + node_size * neighbors[m] + data_len + neighbor_len + n * 4, _MM_HINT_T0);
+          _mm_prefetch(opt_graph_ + node_size * neighbors[m] + data_len + neighbor_len + (n << 2), _MM_HINT_T0);
 #endif
       }
       for (unsigned m = 0; m < MaxM; ++m) {
         unsigned int id = neighbors[m];
         if (flags[id]) continue;
-#ifdef PROFILE
-        auto hash_xor_start = std::chrono::high_resolution_clock::now();
-#endif
 #ifdef THETA_GUIDED_SEARCH
         float approximate_theta = 0.0;
 #ifdef EXACT_SEARCH
@@ -661,6 +662,7 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
 #else
         unsigned long long hamming_result[hash_size >> 1];
         unsigned int hamming_distance = 0;
+        unsigned int hamming_distance_max = -1;
 #ifdef __AVX__
         unsigned int* hash_value_address = (unsigned int*)(opt_graph_ + node_size * id + data_len + neighbor_len);
         for (unsigned int i = 0; i < hash_size; i += 8) {
@@ -679,11 +681,6 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
             hamming_distance += _popcnt64(hamming_result[j]);
 #endif
         }
-#ifdef PROFILE
-        auto hash_xor_end = std::chrono::high_resolution_clock::now();
-        profile_time[0] += (hash_xor_end - hash_xor_start);
-        auto hash_popcnt_start = std::chrono::high_resolution_clock::now();
-#endif
 #else
         for (unsigned int num_integer = 0; num_integer < hash_bitwidth / (8 * sizeof(unsigned int)); num_integer++) {
           unsigned int* hash_value_address = (unsigned int*)(opt_graph_ + node_size * id + data_len + neighbor_len);
@@ -692,30 +689,29 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
         }
 #endif
 //        approximate_theta = hamming_distance * 180.0 / hash_bitwidth;
+        if (hamming_distance > hamming_distance_max && theta_queue_size > theta_queue_size_limit) {
+          continue;
+        }
+        hamming_distance_max = hamming_distance;
         HashNeighbor cat_hamming_id(id, hamming_distance);
         theta_queue[theta_queue_size] = cat_hamming_id;
         theta_queue_size++;
-        
-#ifdef PROFILE
-        auto hash_popcnt_end = std::chrono::high_resolution_clock::now();
-        profile_time[2] += (hash_popcnt_end - hash_popcnt_start);
-#endif
 #endif
 
 #endif
       }
-#ifdef PROFILE
-      auto hash_sort_start = std::chrono::high_resolution_clock::now();
-#endif
-      if (theta_queue_size)
+      if (theta_queue_size > theta_queue_size_limit) {
         sort(theta_queue.begin(), theta_queue.begin() + theta_queue_size);
+        theta_queue_size = (unsigned int)ceil(theta_queue_size * threshold_percent);
+      }
 #ifdef PROFILE
-      auto hash_sort_end = std::chrono::high_resolution_clock::now();
-      profile_time[4] += (hash_sort_end - hash_sort_start);
+      auto hash_approx_end = std::chrono::high_resolution_clock::now();
+      profile_time[1] += (hash_approx_end - hash_approx_start);
       auto dist_start = std::chrono::high_resolution_clock::now();
 #endif
 #ifdef THETA_GUIDED_SEARCH
-      for (unsigned int m = 0; m < (unsigned int)ceil(theta_queue_size * threshold_percent); m++) {
+      for (unsigned int m = 0; m < theta_queue_size; m++) {
+//      for (unsigned int m = 0; m < (unsigned int)ceil(theta_queue_size * threshold_percent); m++) {
         unsigned int id = theta_queue[m].id;
 #else
       for (unsigned m = 0; m < MaxM; ++m) {
@@ -756,7 +752,7 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
       }
 #ifdef PROFILE
       auto dist_end = std::chrono::high_resolution_clock::now();
-      profile_time[1] += (dist_end - dist_start);
+      profile_time[2] += (dist_end - dist_start);
 #endif
     }
     if (nk <= k)
