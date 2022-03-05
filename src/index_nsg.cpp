@@ -700,10 +700,12 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
 
 #endif
       }
+#ifdef THETA_GUIDED_SEARCH
       if (theta_queue_size > theta_queue_size_limit) {
         sort(theta_queue.begin(), theta_queue.begin() + theta_queue_size);
         theta_queue_size = (unsigned int)ceil(theta_queue_size * threshold_percent);
       }
+#endif
 #ifdef PROFILE
       auto hash_approx_end = std::chrono::high_resolution_clock::now();
       profile_time[1] += (hash_approx_end - hash_approx_start);
