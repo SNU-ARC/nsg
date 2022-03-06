@@ -647,7 +647,7 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
         _mm_prefetch(opt_graph_ + node_size * neighbors[m], _MM_HINT_T0);
 #ifdef THETA_GUIDED_SEARCH
         for (unsigned n = 0; n < hash_size; n++)
-          _mm_prefetch(opt_graph_ + node_size * neighbors[m] + data_len + neighbor_len + (n << 2), _MM_HINT_T0);
+          _mm_prefetch(opt_graph_ + node_size * nd_ + hash_len * neighbors[m] + (n << 2), _MM_HINT_T0);
 #endif
       }
       for (unsigned m = 0; m < MaxM; ++m) {
@@ -667,7 +667,8 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
         unsigned long long hamming_result[hash_size >> 1];
         unsigned int hamming_distance = 0;
 #ifdef __AVX__
-        unsigned int* hash_value_address = (unsigned int*)(opt_graph_ + node_size * id + data_len + neighbor_len);
+        unsigned int* hash_value_address = (unsigned int*)(opt_graph_ + node_size * nd_ + hash_len * id);
+//        unsigned int* hash_value_address = (unsigned int*)(opt_graph_ + node_size * id + data_len + neighbor_len);
         for (unsigned int i = 0; i < hash_size; i += 8) {
           __m256i hashed_query_avx, hash_value_avx, hamming_result_avx;
           hashed_query_avx = _mm256_loadu_si256((__m256i*)&hashed_query[i]);
@@ -818,9 +819,10 @@ void IndexNSG::OptimizeGraph(float *data) {  // use after build or load
   neighbor_len = (width + 1) * sizeof(unsigned);
 #ifdef THETA_GUIDED_SEARCH
   hash_len = (hash_bitwidth >> 3); // SJ: Append hash_values
-  node_size = data_len + neighbor_len + hash_len;
+  node_size = data_len + neighbor_len;
+//  node_size = data_len + neighbor_len + hash_len;
   unsigned int hash_function_size = dimension_ * hash_bitwidth * sizeof(float);
-  opt_graph_ = (char *)malloc(node_size * nd_ + hash_function_size);
+  opt_graph_ = (char *)malloc(node_size * nd_ + hash_len * nd_ + hash_function_size);
 #else
   node_size = data_len + neighbor_len;
   opt_graph_ = (char *)malloc(node_size * nd_);
@@ -1014,7 +1016,8 @@ void IndexNSG::GenerateHashFunction (char* file_name) {
   DistanceFastL2* dist_fast = (DistanceFastL2*) distance_;
   std::normal_distribution<float> norm_dist (0.0, 1.0);
   std::mt19937 gen(rand());
-  hash_function = (float*)(opt_graph_ + node_size * nd_);
+  hash_function = (float*)(opt_graph_ + node_size * nd_ + hash_len * nd_);
+//  hash_function = (float*)(opt_graph_ + node_size * nd_);
 //  hash_function = new float[dimension_ * hash_bitwidth];
   float hash_function_norm[hash_bitwidth - 1];
 
@@ -1067,7 +1070,8 @@ void IndexNSG::GenerateHashValue (char* file_name) {
 
   std::ofstream file_hash_value(file_name, std::ios::binary | std::ios::out);
   for (unsigned int i = 0; i < nd_; i++) {
-    unsigned int* hash_value = (unsigned int*)(opt_graph_ + node_size * i + data_len + neighbor_len);
+    unsigned int* hash_value = (unsigned int*)(opt_graph_ + node_size * nd_ + hash_len * i);
+//    unsigned int* hash_value = (unsigned int*)(opt_graph_ + node_size * i + data_len + neighbor_len);
     for (unsigned int j = 0; j < (hash_bitwidth >> 5); j++) { 
       file_hash_value.write((char*)hash_value, 4);
       hash_value++;
@@ -1088,7 +1092,8 @@ bool IndexNSG::LoadHashFunction (char* file_name) {
       return false;
     }
 
-    hash_function = (float*)(opt_graph_ + node_size * nd_);
+    hash_function = (float*)(opt_graph_ + node_size * nd_ + hash_len * nd_);
+//    hash_function = (float*)(opt_graph_ + node_size * nd_);
 //    hash_function = new float[dimension_ * hash_bitwidth];
     file_hash_function.read((char*)hash_function, dimension_ * hash_bitwidth * sizeof(float));
     file_hash_function.close();
@@ -1103,7 +1108,8 @@ bool IndexNSG::LoadHashValue (char* file_name) {
   std::ifstream file_hash_value(file_name, std::ios::binary);
   if (file_hash_value.is_open()) {
     for (unsigned int i = 0; i < nd_; i++) {
-      unsigned int* hash_value = (unsigned int*)(opt_graph_ + node_size * i + data_len + neighbor_len);
+      unsigned int* hash_value = (unsigned int*)(opt_graph_ + node_size * nd_ + hash_len * i);
+//      unsigned int* hash_value = (unsigned int*)(opt_graph_ + node_size * i + data_len + neighbor_len);
       for (unsigned int j = 0; j < (hash_bitwidth >> 5); j++) {
         file_hash_value.read((char*)hash_value, 4);
         hash_value++;
