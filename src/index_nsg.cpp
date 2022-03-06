@@ -610,7 +610,8 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
   unsigned int query_traverse_miss = 0;
 #endif
 #ifdef THETA_GUIDED_SEARCH
-//    std::vector<HashNeighbor> theta_queue(MaxM_ep);
+  for (unsigned int m = 0; m < hash_size; m++)
+    _mm_prefetch(&hashed_query[m], _MM_HINT_T2);
 #endif
   while (k < (int)L) {
     int nk = L;
@@ -637,11 +638,11 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
       unsigned MaxM = *neighbors;
       neighbors++;
 #ifdef THETA_GUIDED_SEARCH
-      unsigned theta_queue_size_limit = (unsigned int)ceil(MaxM * threshold_percent);
+      unsigned int theta_queue_size = 0;
+      unsigned int theta_queue_size_limit = (unsigned int)ceil(MaxM * threshold_percent);
       HashNeighbor hamming_distance_max(0, 0);
 #endif
      
-      unsigned int theta_queue_size = 0;
       for (unsigned m = 0; m < MaxM; ++m) {
         _mm_prefetch(opt_graph_ + node_size * neighbors[m], _MM_HINT_T0);
 #ifdef THETA_GUIDED_SEARCH
@@ -653,15 +654,6 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
       for (unsigned m = 0; m < MaxM; ++m) {
         unsigned int id = neighbors[m];
         if (flags[id]) continue;
-#ifdef EXACT_SEARCH
-        float neighbor_norm = *(float*)(opt_graph_ + node_size * id);
-        float* neighbor_data = (float*)(opt_graph_ + node_size * id + sizeof(float));
-        float inner_product = dist_fast->DistanceInnerProduct::compare(neighbor_data, query, dimension_);
-        approximate_theta = acos(inner_product / sqrt(query_norm * neighbor_norm)) * 180.0 / 3.1456265;
-        theta_queue[theta_queue_size].id = id;
-        theta_queue[theta_queue_size].distance = approximate_theta;
-        theta_queue_size++;
-#else
         unsigned int hamming_distance = 0;
 #ifdef __AVX__
         unsigned int* hash_value_address = (unsigned int*)(opt_graph_ + node_size * nd_ + hash_len * id);
@@ -720,10 +712,10 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
 //        }
 //        else
 //          sort(theta_queue.begin(), theta_queue.begin() + theta_queue_size_limit);
-#endif
-
       }
 #endif
+
+//
 //#ifdef THETA_GUIDED_SEARCH
 //      if (theta_queue_size > theta_queue_size_limit) {
 //        sort(theta_queue.begin(), theta_queue.begin() + theta_queue_size);
@@ -739,6 +731,7 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
       for (unsigned int m = 0; m < theta_queue_size; m++) {
 //      for (unsigned int m = 0; m < (unsigned int)ceil(theta_queue_size * threshold_percent); m++) {
         unsigned int id = theta_queue[m].id;
+//        std::cout << id << std::endl;
 #else
       for (unsigned m = 0; m < MaxM; ++m) {
         unsigned id = neighbors[m];
@@ -818,8 +811,8 @@ void IndexNSG::OptimizeGraph(float *data) {  // use after build or load
   hash_len = (hash_bitwidth >> 3); // SJ: Append hash_values
   node_size = data_len + neighbor_len;
 //  node_size = data_len + neighbor_len + hash_len;
-  unsigned int hash_function_size = dimension_ * hash_bitwidth * sizeof(float);
-  opt_graph_ = (char *)malloc(node_size * nd_ + hash_len * nd_ + hash_function_size);
+  hash_function_size = dimension_ * hash_bitwidth * sizeof(float);
+  opt_graph_ = (char *)malloc(node_size * nd_ + hash_len * (nd_ + 1) + hash_function_size);
 #else
   node_size = data_len + neighbor_len;
   opt_graph_ = (char *)malloc(node_size * nd_);
