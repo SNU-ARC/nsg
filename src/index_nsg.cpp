@@ -650,10 +650,10 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
           _mm_prefetch(opt_graph_ + node_size * nd_ + hash_len * neighbors[m] + (n << 2), _MM_HINT_T0);
 #endif
       }
+#ifdef THETA_GUIDED_SEARCH
       for (unsigned m = 0; m < MaxM; ++m) {
         unsigned int id = neighbors[m];
         if (flags[id]) continue;
-#ifdef THETA_GUIDED_SEARCH
         float approximate_theta = 0.0;
 #ifdef EXACT_SEARCH
         float neighbor_norm = *(float*)(opt_graph_ + node_size * id);
@@ -725,8 +725,8 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
 //          sort(theta_queue.begin(), theta_queue.begin() + theta_queue_size_limit);
 #endif
 
-#endif
       }
+#endif
 //#ifdef THETA_GUIDED_SEARCH
 //      if (theta_queue_size > theta_queue_size_limit) {
 //        sort(theta_queue.begin(), theta_queue.begin() + theta_queue_size);
