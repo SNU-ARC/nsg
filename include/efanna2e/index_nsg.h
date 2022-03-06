@@ -56,6 +56,7 @@ class IndexNSG : public Index {
   // SJ: For SRP
   unsigned int hash_bitwidth;
   float* hash_function;
+  unsigned int hash_function_size;
   void GenerateHashFunction (char* file_name);
   unsigned int* hash_vector;
   void GenerateHashValue (char* file_name);
