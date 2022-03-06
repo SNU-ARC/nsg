@@ -638,7 +638,6 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
       neighbors++;
 #ifdef THETA_GUIDED_SEARCH
       unsigned theta_queue_size_limit = (unsigned int)ceil(MaxM * threshold_percent);
-//      unsigned int hamming_distance_max = -1;
       HashNeighbor hamming_distance_max(0, 0);
 #endif
      
@@ -654,7 +653,6 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
       for (unsigned m = 0; m < MaxM; ++m) {
         unsigned int id = neighbors[m];
         if (flags[id]) continue;
-        float approximate_theta = 0.0;
 #ifdef EXACT_SEARCH
         float neighbor_norm = *(float*)(opt_graph_ + node_size * id);
         float* neighbor_data = (float*)(opt_graph_ + node_size * id + sizeof(float));
@@ -664,24 +662,23 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
         theta_queue[theta_queue_size].distance = approximate_theta;
         theta_queue_size++;
 #else
-        unsigned long long hamming_result[hash_size >> 1];
         unsigned int hamming_distance = 0;
 #ifdef __AVX__
         unsigned int* hash_value_address = (unsigned int*)(opt_graph_ + node_size * nd_ + hash_len * id);
-//        unsigned int* hash_value_address = (unsigned int*)(opt_graph_ + node_size * id + data_len + neighbor_len);
         for (unsigned int i = 0; i < hash_size; i += 8) {
+          unsigned long long hamming_result[4];
           __m256i hashed_query_avx, hash_value_avx, hamming_result_avx;
           hashed_query_avx = _mm256_loadu_si256((__m256i*)&hashed_query[i]);
           hash_value_avx = _mm256_loadu_si256((__m256i*)(hash_value_address + i));
           hamming_result_avx = _mm256_xor_si256(hashed_query_avx, hash_value_avx);
 #ifdef __AVX512VPOPCNTDQ__
           hamming_result_avx = _mm256_popcnt_epi64(hamming_result_avx);
-          _mm256_storeu_si256((__m256i*)&hamming_result[i >> 1], hamming_result_avx);
-          for (unsigned int j = (i >> 1); j < (i >> 1) + 4; j++)
+          _mm256_storeu_si256((__m256i*)&hamming_result, hamming_result_avx);
+          for (unsigned int j = 0; j < 4; j++)
             hamming_distance += hamming_result[j];
 #else
-          _mm256_storeu_si256((__m256i*)&hamming_result[i >> 1], hamming_result_avx);
-          for (unsigned int j = (i >> 1); j < (i >> 1) + 4; j++)
+          _mm256_storeu_si256((__m256i*)&hamming_result, hamming_result_avx);
+          for (unsigned int j = 0; j < 4; j++)
             hamming_distance += _popcnt64(hamming_result[j]);
 #endif
         }
