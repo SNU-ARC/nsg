@@ -610,8 +610,6 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
   unsigned int query_traverse_miss = 0;
 #endif
 #ifdef THETA_GUIDED_SEARCH
-//  for (unsigned int m = 0; m < hash_size; m+=8)
-//    _mm_prefetch(&hashed_query[m], _MM_HINT_T2);
   __m256i hashed_query_avx[hash_size >> 3];
   for (unsigned int m = 0; m < (hash_size >> 3); m++) {
     hashed_query_avx[m] = _mm256_loadu_si256((__m256i*)&hashed_query[m << 3]);
