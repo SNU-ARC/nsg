@@ -575,7 +575,6 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
 #ifdef THETA_GUIDED_SEARCH
   float query_norm = dist_fast->norm(query, dimension_);
   unsigned int hash_size = hash_bitwidth >> 5;
-  unsigned int* hashed_query = new unsigned int[hash_size];
   for (unsigned int num_integer = 0; num_integer < hash_size; num_integer++) {
     hashed_query[num_integer] = 0;
     std::bitset<32> temp_bool;
@@ -840,9 +839,6 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
   total_traverse += query_traverse;
   total_traverse_miss += query_traverse_miss;
 //  printf("[Query_summary] # of traversed: %u, # of invalid: %u, ratio: %.2f%%\n", query_traverse, query_traverse_miss, (float)query_traverse_miss / query_traverse * 100);
-#endif
-#ifdef THETA_GUIDED_SEARCH
-  delete[] hashed_query;
 #endif
   nth_query++;
 }

@@ -132,7 +132,8 @@ int main(int argc, char** argv) {
     index.GenerateHashFunction(hash_function_name);
     index.GenerateHashValue(hash_vector_name);
   }
-  index.theta_queue.reserve(60);
+  index.theta_queue.reserve(32);
+  index.hashed_query = new unsigned int[index.hash_bitwidth >> 5];
 #endif
   efanna2e::Parameters paras;
   paras.Set<unsigned>("L_search", L);
@@ -208,6 +209,7 @@ int main(int argc, char** argv) {
 #ifdef THETA_GUIDED_SEARCH
   delete[] hash_function_name;
   delete[] hash_vector_name;
+  delete[] index.hashed_query;
 //  index.DeallocateHashVector();
 #endif
 
