@@ -737,13 +737,9 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
         else if (hamming_distance < hamming_distance_max.distance) {
           HashNeighbor cat_hamming_id(id, hamming_distance);
           theta_queue[hamming_distance_max.id] = cat_hamming_id;
-          hamming_distance_max.distance = 0;
-          for (unsigned int i = 0; i < theta_queue_size; i++) {
-            if (hamming_distance_max.distance < theta_queue[i].distance) {
-              hamming_distance_max.id = i;
-              hamming_distance_max.distance = theta_queue[i].distance;
-            }
-          }
+          std::vector<HashNeighbor>::iterator index = std::max_element(theta_queue.begin(), theta_queue.begin() + theta_queue_size);
+          hamming_distance_max.id = std::distance(theta_queue.begin(), index);
+          hamming_distance_max.distance = theta_queue[hamming_distance_max.id].distance;
         }
 //        if (hamming_distance > hamming_distance_max.distance && theta_queue_size > theta_queue_size_limit) {
 //          continue;
