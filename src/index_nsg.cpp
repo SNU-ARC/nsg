@@ -645,10 +645,10 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
 #endif
      
       for (unsigned m = 0; m < MaxM; ++m) {
-        _mm_prefetch(opt_graph_ + node_size * neighbors[m], _MM_HINT_T0);
+//        _mm_prefetch(opt_graph_ + node_size * neighbors[m], _MM_HINT_T0);
 #ifdef THETA_GUIDED_SEARCH
         for (unsigned n = 0; n < hash_size; n++)
-          _mm_prefetch(hash_value + (hash_len >> 2) * neighbors[m] + n, _MM_HINT_T0);
+          _mm_prefetch(hash_value + hash_size * neighbors[m] + n, _MM_HINT_T0);
 #endif
       }
 
