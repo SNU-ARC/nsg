@@ -58,7 +58,7 @@ class IndexNSG : public Index {
   float* hash_function;
   unsigned int hash_function_size;
   void GenerateHashFunction (char* file_name);
-  unsigned int* hash_vector;
+  unsigned int* hash_value;
   void GenerateHashValue (char* file_name);
   void DeallocateHashVector ();
   bool LoadHashFunction (char* file_name);
