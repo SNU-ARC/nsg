@@ -1065,13 +1065,9 @@ bool IndexNSG::LoadHashFunction (char* file_name) {
     }
 
     hash_function = (float*)(opt_graph_ + node_size * nd_ + hash_len * nd_);
-    float* hash_function_buffer = new float[dimension_ * hash_bitwidth];
-    file_hash_function.read((char*)hash_function_buffer, dimension_ * hash_bitwidth * sizeof(float));
-    std::memcpy(hash_function, hash_function_buffer, dimension_ * hash_bitwidth * sizeof(float));
-    delete[] hash_function_buffer;
 //    hash_function = (float*)(opt_graph_ + node_size * nd_);
 //    hash_function = new float[dimension_ * hash_bitwidth];
-//    file_hash_function.read((char*)hash_function, dimension_ * hash_bitwidth * sizeof(float));
+    file_hash_function.read((char*)hash_function, dimension_ * hash_bitwidth * sizeof(float));
     file_hash_function.close();
 
     return true;
