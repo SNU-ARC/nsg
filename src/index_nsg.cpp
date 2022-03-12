@@ -573,14 +573,14 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
   auto query_hash_start = std::chrono::high_resolution_clock::now();
 #endif
 #ifdef THETA_GUIDED_SEARCH
-  unsigned seed_id = retset[0].id;
-  unsigned* seed_neighbors = (unsigned*)(opt_graph_ + node_size * seed_id + data_len);
-  unsigned seed_MaxM = *seed_neighbors;
-  seed_neighbors++;
-  for (unsigned m = 0; m < seed_MaxM; m++) {
-    for (unsigned n = 0; n < hash_bitwidth >> 5; n++)
-      _mm_prefetch(hash_value + (hash_len >> 2) * seed_neighbors[m] + n, _MM_HINT_T0);
-  }
+//  unsigned seed_id = retset[0].id;
+//  unsigned* seed_neighbors = (unsigned*)(opt_graph_ + node_size * seed_id + data_len);
+//  unsigned seed_MaxM = *seed_neighbors;
+//  seed_neighbors++;
+//  for (unsigned m = 0; m < seed_MaxM; m++) {
+//    for (unsigned n = 0; n < hash_bitwidth >> 5; n++)
+//      _mm_prefetch(hash_value + (hash_len >> 2) * seed_neighbors[m] + n, _MM_HINT_T0);
+//  }
 
   float query_norm = dist_fast->norm(query, dimension_);
   unsigned int hash_size = hash_bitwidth >> 5;
@@ -641,14 +641,14 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
       unsigned int theta_queue_size = 0;
       unsigned int theta_queue_size_limit = (unsigned int)ceil(MaxM * threshold_percent);
       HashNeighbor hamming_distance_max(0, 0);
-//      HashNeighbor cat_hamming_id[MaxM];
 #endif
      
       for (unsigned m = 0; m < MaxM; ++m) {
+        unsigned int id = neighbors[m];
 //        _mm_prefetch(opt_graph_ + node_size * neighbors[m], _MM_HINT_T0);
 #ifdef THETA_GUIDED_SEARCH
-        for (unsigned n = 0; n < hash_size; n++)
-          _mm_prefetch(hash_value + hash_size * neighbors[m] + n, _MM_HINT_T0);
+        for (unsigned k = 0; k < hash_size; k++)
+          _mm_prefetch(hash_value + hash_size * id + k, _MM_HINT_T0);
 #endif
       }
 
