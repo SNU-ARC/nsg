@@ -637,8 +637,8 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
         unsigned int id = neighbors[m];
 //        _mm_prefetch(opt_graph_ + node_size * neighbors[m], _MM_HINT_T0);
 #ifdef THETA_GUIDED_SEARCH
-        for (unsigned k = 0; k < hash_size; k++)
-          _mm_prefetch(hash_value + hash_size * id + k, _MM_HINT_T0);
+        for (unsigned k = 0; k < hash_size; k+=16)
+          _mm_prefetch((unsigned*)(hash_value + hash_size * id + k), _MM_HINT_T0);
 #endif
       }
 
@@ -650,7 +650,7 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
         unsigned int* hash_value_address = (unsigned int*)(opt_graph_ + node_size * nd_ + hash_len * id);
         for (unsigned int i = 0; i < (hash_size >> 3); i++) {
           __m256i hash_value_avx, hamming_result_avx;
-          hash_value_avx = _mm256_loadu_si256((__m256i*)(&hash_value_address[i << 3]));
+          hash_value_avx = _mm256_loadu_si256((__m256i*)(hash_value_address));
           hamming_result_avx = _mm256_xor_si256(hashed_query_avx[i], hash_value_avx);
 #ifdef __AVX512VPOPCNTDQ__
           hamming_result_avx = _mm256_popcnt_epi64(hamming_result_avx);
@@ -661,6 +661,7 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
           _mm256_storeu_si256((__m256i*)&hamming_result, hamming_result_avx);
           for (unsigned int j = 0; j < 4; j++)
             hamming_distance += _popcnt64(hamming_result[j]);
+          hash_value_address += 8;
 #endif
         }
 #else
@@ -1045,10 +1046,12 @@ bool IndexNSG::LoadHashFunction (char* file_name) {
 
     hash_function = (float*)(opt_graph_ + node_size * nd_ + hash_len * nd_);
 //    hash_function = (float*)(opt_graph_ + node_size * nd_);
-//    hash_function = new float[dimension_ * hash_bitwidth];
-    file_hash_function.read((char*)hash_function, dimension_ * hash_bitwidth * sizeof(float));
+    float* hash_function_temp = new float[dimension_ * hash_bitwidth];
+    hash_function_temp = (float*)memalign(32, dimension_ * hash_bitwidth * sizeof(float));
+    file_hash_function.read((char*)hash_function_temp, dimension_ * hash_bitwidth * sizeof(float));
     file_hash_function.close();
-
+    memcpy(hash_function, hash_function_temp, dimension_ * hash_bitwidth * sizeof(float));
+    delete[] hash_function_temp;
     return true;
   }
   else {
@@ -1059,13 +1062,16 @@ bool IndexNSG::LoadHashValue (char* file_name) {
   std::ifstream file_hash_value(file_name, std::ios::binary);
   if (file_hash_value.is_open()) {
     hash_value = (unsigned int*)(opt_graph_ + node_size * nd_);
+    unsigned int* hash_value_temp = new unsigned int[nd_ * (hash_bitwidth >> 5)];
+    hash_value_temp = (unsigned int*)memalign(32, nd_ * (hash_bitwidth >> 3));
     for (unsigned int i = 0; i < nd_; i++) {
-//      unsigned int* hash_value = (unsigned int*)(opt_graph_ + node_size * i + data_len + neighbor_len);
       for (unsigned int j = 0; j < (hash_bitwidth >> 5); j++) {
-        file_hash_value.read((char*)(hash_value + (hash_len >> 2) * i + j), 4);
+        file_hash_value.read((char*)(hash_value_temp + (hash_len >> 2) * i + j), 4);
       }
     }
     file_hash_value.close();
+    memcpy(hash_value, hash_value_temp, nd_ * (hash_bitwidth >> 3));
+    delete[] hash_value_temp;
     
     return true;
   }

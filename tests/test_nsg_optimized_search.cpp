@@ -133,6 +133,8 @@ int main(int argc, char** argv) {
     index.GenerateHashValue(hash_vector_name);
   }
   index.theta_queue.reserve(32);
+  for (int i = 0; i < 32; i++)
+    index.theta_queue[i].distance = -1;
   index.hashed_query = new unsigned int[index.hash_bitwidth >> 5];
 #endif
   efanna2e::Parameters paras;
