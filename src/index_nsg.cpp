@@ -561,7 +561,6 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
     float *x = (float *)(opt_graph_ + node_size * id);
     float norm_x = *x;
     x++;
-//    float dist = 180.0;
     float dist = dist_fast->compare(x, query, norm_x, (unsigned)dimension_);
     retset[i] = Neighbor(id, dist, true);
     flags[id] = true;
@@ -576,7 +575,6 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
   float query_norm = dist_fast->norm(query, dimension_);
   unsigned int hash_size = hash_bitwidth >> 5;
   for (unsigned int num_integer = 0; num_integer < hash_size; num_integer++) {
-    hashed_query[num_integer] = 0;
     std::bitset<32> temp_bool;
     for (unsigned int bit_count = 0; bit_count < 32; bit_count++) {
       temp_bool.set(bit_count, (dist_fast->DistanceInnerProduct::compare(query, &hash_function[dimension_ * (32 * num_integer + bit_count)], dimension_) > 0));
@@ -632,6 +630,7 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
       unsigned int theta_queue_size = 0;
       unsigned int theta_queue_size_limit = (unsigned int)ceil(MaxM * threshold_percent);
       HashNeighbor hamming_distance_max(0, 0);
+      std::vector<HashNeighbor>::iterator index;
 #endif
      
       for (unsigned m = 0; m < MaxM; ++m) {
@@ -646,7 +645,6 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
 #ifdef THETA_GUIDED_SEARCH
       for (unsigned m = 0; m < MaxM; ++m) {
         unsigned int id = neighbors[m];
-//        if (flags[id]) continue;
         unsigned int hamming_distance = 0;
 #ifdef __AVX__
         unsigned int* hash_value_address = (unsigned int*)(opt_graph_ + node_size * nd_ + hash_len * id);
@@ -673,21 +671,20 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
         }
 #endif
         HashNeighbor cat_hamming_id(id, hamming_distance);
-        if (theta_queue_size < theta_queue_size_limit) {
-          theta_queue[theta_queue_size] = cat_hamming_id;
-          theta_queue_size++;
-          if (theta_queue_size == theta_queue_size_limit) {
-            std::vector<HashNeighbor>::iterator index = std::max_element(theta_queue.begin(), theta_queue.begin() + theta_queue_size);
-            hamming_distance_max.id = std::distance(theta_queue.begin(), index);
-            hamming_distance_max.distance = theta_queue[hamming_distance_max.id].distance;
-          }
-        }
-        else if (hamming_distance < hamming_distance_max.distance) {
-          theta_queue[hamming_distance_max.id] = cat_hamming_id;
-          std::vector<HashNeighbor>::iterator index = std::max_element(theta_queue.begin(), theta_queue.begin() + theta_queue_size);
-          hamming_distance_max.id = std::distance(theta_queue.begin(), index);
-          hamming_distance_max.distance = theta_queue[hamming_distance_max.id].distance;
-        }
+        InsertIntoPool (theta_queue.data(), theta_queue_size_limit, cat_hamming_id);
+//        if (theta_queue_size < theta_queue_size_limit) {
+//          theta_queue[theta_queue_size] = cat_hamming_id;
+//          theta_queue_size++;
+//          index = std::max_element(theta_queue.begin(), theta_queue.begin() + theta_queue_size_limit);
+//          hamming_distance_max.id = std::distance(theta_queue.begin(), index);
+//          hamming_distance_max.distance = theta_queue[hamming_distance_max.id].distance;
+//        }
+//        else if (hamming_distance < hamming_distance_max.distance) {
+//          theta_queue[hamming_distance_max.id] = cat_hamming_id;
+//          index = std::max_element(theta_queue.begin(), theta_queue.begin() + theta_queue_size_limit);
+//          hamming_distance_max.id = std::distance(theta_queue.begin(), index);
+//          hamming_distance_max.distance = theta_queue[hamming_distance_max.id].distance;
+//        }
       }
 #endif
 
@@ -697,9 +694,9 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
       auto dist_start = std::chrono::high_resolution_clock::now();
 #endif
 #ifdef THETA_GUIDED_SEARCH
-      for (unsigned int m = 0; m < theta_queue_size; m++) {
+      for (unsigned int m = 0; m < theta_queue_size_limit; m++) {
         unsigned int id = theta_queue[m].id;
-//        std::cout << id << std::endl;
+        theta_queue[m].distance = -1;
 #else
       for (unsigned m = 0; m < MaxM; ++m) {
         unsigned id = neighbors[m];
