@@ -671,20 +671,20 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
         }
 #endif
         HashNeighbor cat_hamming_id(id, hamming_distance);
-        InsertIntoPool (theta_queue.data(), theta_queue_size_limit, cat_hamming_id);
-//        if (theta_queue_size < theta_queue_size_limit) {
-//          theta_queue[theta_queue_size] = cat_hamming_id;
-//          theta_queue_size++;
-//          index = std::max_element(theta_queue.begin(), theta_queue.begin() + theta_queue_size_limit);
-//          hamming_distance_max.id = std::distance(theta_queue.begin(), index);
-//          hamming_distance_max.distance = theta_queue[hamming_distance_max.id].distance;
-//        }
-//        else if (hamming_distance < hamming_distance_max.distance) {
-//          theta_queue[hamming_distance_max.id] = cat_hamming_id;
-//          index = std::max_element(theta_queue.begin(), theta_queue.begin() + theta_queue_size_limit);
-//          hamming_distance_max.id = std::distance(theta_queue.begin(), index);
-//          hamming_distance_max.distance = theta_queue[hamming_distance_max.id].distance;
-//        }
+//        InsertIntoPool (theta_queue.data(), theta_queue_size_limit, cat_hamming_id);
+        if (theta_queue_size < theta_queue_size_limit) {
+          theta_queue[theta_queue_size] = cat_hamming_id;
+          theta_queue_size++;
+          index = std::max_element(theta_queue.begin(), theta_queue.begin() + theta_queue_size_limit);
+          hamming_distance_max.id = std::distance(theta_queue.begin(), index);
+          hamming_distance_max.distance = theta_queue[hamming_distance_max.id].distance;
+        }
+        else if (hamming_distance < hamming_distance_max.distance) {
+          theta_queue[hamming_distance_max.id] = cat_hamming_id;
+          index = std::max_element(theta_queue.begin(), theta_queue.begin() + theta_queue_size_limit);
+          hamming_distance_max.id = std::distance(theta_queue.begin(), index);
+          hamming_distance_max.distance = theta_queue[hamming_distance_max.id].distance;
+        }
       }
 #endif
 
