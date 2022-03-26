@@ -21,8 +21,8 @@ target_link_libraries(exact_aid exactaidlib -ltcmalloc)
 add_executable(ours test_nsg_optimized_search.cpp)
 target_link_libraries(ours ourslib -ltcmalloc)
 
-target_compile_definitions(baseline PRIVATE GET_MISS_TRAVERSE EVAL_RECALL)
-target_compile_definitions(exact_sort PRIVATE GET_MISS_TRAVERSE EVAL_RECALL THETA_GUIDED_SEARCH EXACT_SORT_SEARCH)
-target_compile_definitions(exact_aid PRIVATE GET_MISS_TRAVERSE EVAL_RECALL THETA_GUIDED_SEARCH EXACT_AID_SEARCH)
-target_compile_definitions(ours PRIVATE GET_MISS_TRAVERSE EVAL_RECALL THETA_GUIDED_SEARCH)
+#target_compile_definitions(baseline PRIVATE GET_MISS_TRAVERSE EVAL_RECALL)
+#target_compile_definitions(exact_sort PRIVATE GET_MISS_TRAVERSE EVAL_RECALL THETA_GUIDED_SEARCH EXACT_SORT_SEARCH)
+#target_compile_definitions(exact_aid PRIVATE GET_MISS_TRAVERSE EVAL_RECALL THETA_GUIDED_SEARCH EXACT_AID_SEARCH)
+#target_compile_definitions(ours PRIVATE GET_MISS_TRAVERSE EVAL_RECALL THETA_GUIDED_SEARCH)
 
