@@ -132,10 +132,10 @@ int main(int argc, char** argv) {
     index.GenerateHashFunction(hash_function_name);
     index.GenerateHashValue(hash_vector_name);
   }
-  index.theta_queue.reserve(32);
-  for (int i = 0; i < 32; i++)
-    index.theta_queue[i].distance = -1;
-  index.hashed_query = new unsigned int[index.hash_bitwidth >> 5];
+//  index.theta_queue.reserve(32);
+//  for (int i = 0; i < 32; i++)
+//    index.theta_queue[i].distance = -1;
+//  index.hashed_query = new unsigned int[index.hash_bitwidth >> 5];
 #endif
   efanna2e::Parameters paras;
   paras.Set<unsigned>("L_search", L);
@@ -149,7 +149,7 @@ int main(int argc, char** argv) {
 #pragma omp parallel for num_threads(1)
   for (unsigned i = 0; i < query_num; i++) {
 #ifdef THETA_GUIDED_SEARCH
-    for (unsigned int a = 0; a < (index.hash_bitwidth >> 5) * query_dim; a += 8) {
+    for (unsigned int a = 0; a < (index.hash_bitwidth >> 5) * query_dim; a += 16) {
       _mm_prefetch(&index.hash_function[a], _MM_HINT_T0);
     }
 #endif
@@ -211,7 +211,7 @@ int main(int argc, char** argv) {
 #ifdef THETA_GUIDED_SEARCH
   delete[] hash_function_name;
   delete[] hash_vector_name;
-  delete[] index.hashed_query;
+//  delete[] index.hashed_query;
 //  index.DeallocateHashVector();
 #endif
 
