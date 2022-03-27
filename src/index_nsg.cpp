@@ -639,7 +639,7 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
 #endif
      
 #ifdef THETA_GUIDED_SEARCH
-      for (unsigned m = 0; m < MaxM; ++m) {
+      for (unsigned m = 0; m < MaxM || m < 1; ++m) {
         unsigned int id = neighbors[m];
         for (unsigned k = 0; k < hash_size; k+=16)
           _mm_prefetch((unsigned*)(hash_value + hash_size * id + k), _MM_HINT_T0);
