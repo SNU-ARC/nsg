@@ -507,6 +507,11 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
   std::vector<unsigned> init_ids(L);
   // std::mt19937 rng(rand());
   // GenRandom(rng, init_ids.data(), L, (unsigned) nd_);
+
+  std::vector<HashNeighbor> theta_queue(32);
+  for (unsigned i = 0; i < 32; i++)
+    theta_queue[i].distance = -1;
+  unsigned int* hashed_query = new unsigned int[hash_bitwidth >> 5];
 #ifdef PROFILE
   // SJ: Profile_timer
   profile_time.push_back(std::chrono::high_resolution_clock::now() - std::chrono::high_resolution_clock::now()); // 0: query_hash time
@@ -633,14 +638,15 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
       std::vector<HashNeighbor>::iterator index;
 #endif
      
+#ifdef THETA_GUIDED_SEARCH
       for (unsigned m = 0; m < MaxM; ++m) {
         unsigned int id = neighbors[m];
-//        _mm_prefetch(opt_graph_ + node_size * neighbors[m], _MM_HINT_T0);
-#ifdef THETA_GUIDED_SEARCH
         for (unsigned k = 0; k < hash_size; k+=16)
           _mm_prefetch((unsigned*)(hash_value + hash_size * id + k), _MM_HINT_T0);
-#endif
       }
+#endif
+//      for (unsigned m = 0; m < MaxM; ++m) 
+//        _mm_prefetch(opt_graph_ + node_size * neighbors[m], _MM_HINT_T0);
 
 #ifdef THETA_GUIDED_SEARCH
       for (unsigned m = 0; m < MaxM; ++m) {
