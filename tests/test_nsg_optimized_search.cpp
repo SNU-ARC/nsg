@@ -146,7 +146,7 @@ int main(int argc, char** argv) {
 
   auto s = std::chrono::high_resolution_clock::now();
   std::chrono::duration<double> diff;
-#pragma omp parallel for num_threads(20)
+#pragma omp parallel for schedule(dynamic, 100) //num_threads(16)
   for (unsigned i = 0; i < query_num; i++) {
 #ifdef THETA_GUIDED_SEARCH
     for (unsigned int a = 0; a < (index.hash_bitwidth >> 5) * query_dim; a += 16) {

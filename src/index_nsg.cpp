@@ -642,9 +642,6 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
           _mm_prefetch(hash_value + hash_size * id + k, _MM_HINT_T0);
       }
 #endif
-//      for (unsigned m = 0; m < MaxM; ++m) 
-//        _mm_prefetch(opt_graph_ + node_size * neighbors[m], _MM_HINT_T0);
-
 #ifdef THETA_GUIDED_SEARCH
       for (unsigned m = 0; m < MaxM; ++m) {
         unsigned int id = neighbors[m];
@@ -691,6 +688,9 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
         }
       }
 #endif
+      for (unsigned m = 0; m < MaxM; ++m) 
+        _mm_prefetch(opt_graph_ + node_size * neighbors[m], _MM_HINT_T0);
+
 
 #ifdef PROFILE
       auto hash_approx_end = std::chrono::high_resolution_clock::now();
