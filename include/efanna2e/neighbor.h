@@ -135,7 +135,7 @@ struct HashNeighbor{
   unsigned distance;
 
   HashNeighbor() = default;
-  HashNeighbor(unsigned id, unsigned distance) : id{id}, distance{distance}{}
+  HashNeighbor(unsigned id, unsigned distance = -1) : id{id}, distance{distance}{}
 
   inline bool operator<(const HashNeighbor &other) const {
       return distance < other.distance;
