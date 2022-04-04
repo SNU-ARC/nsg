@@ -6,6 +6,7 @@
 #include <efanna2e/util.h>
 #include <chrono>
 #include <string>
+#include <omp.h>
 
 void load_data(char* filename, float*& data, unsigned& num,
                unsigned& dim) {  // load data with sift10K pattern
@@ -146,6 +147,7 @@ int main(int argc, char** argv) {
 
   auto s = std::chrono::high_resolution_clock::now();
   std::chrono::duration<double> diff;
+  omp_set_num_threads(NUM_THREADS);
 #pragma omp parallel for schedule(dynamic, 10) //num_threads(16)
   for (unsigned i = 0; i < query_num; i++) {
 #ifdef THETA_GUIDED_SEARCH
