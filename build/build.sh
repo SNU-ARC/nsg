@@ -1,2 +1,2 @@
 #!/bin/bash
-cmake -DCMAKE_GUILD_TYPE=Release .. && make -j
+cmake -DCMAKE_BUILD_TYPE=Release .. && make -j
