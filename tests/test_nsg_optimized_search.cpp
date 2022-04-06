@@ -67,9 +67,9 @@ void save_result(const char* filename,
 }
 
 int main(int argc, char** argv) {
-  if (argc != 10) {
+  if (argc != 11) {
     std::cout << argv[0]
-              << " data_file query_file nsg_path search_L search_K result_path ground_truth_path hash_bitwidth threshold_percent"
+              << " data_file query_file nsg_path search_L search_K result_path ground_truth_path hash_bitwidth threshold_percent num_of_thread"
               << std::endl;
     exit(-1);
   }
@@ -147,7 +147,11 @@ int main(int argc, char** argv) {
 
   auto s = std::chrono::high_resolution_clock::now();
   std::chrono::duration<double> diff;
-  omp_set_num_threads(NUM_THREADS);
+  if(strcmp(argv[10],"max")){
+    omp_set_num_threads(atoi(argv[10]));
+  }else{
+    omp_set_num_threads(omp_get_max_threads());
+  }
 #pragma omp parallel for schedule(dynamic, 10) //num_threads(16)
   for (unsigned i = 0; i < query_num; i++) {
 #ifdef THETA_GUIDED_SEARCH
