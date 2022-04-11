@@ -20,7 +20,6 @@ add_definitions (-DTHETA_GUIDED_SEARCH)
 #add_definitions (-DGET_MISS_TRAVERSE)
 add_definitions (-DEVAL_RECALL)
 #add_definitions (-DPROFILE)
-ADD_DEFINITIONS(-DNUM_THREADS=16)
 
 add_subdirectory(src)
 add_subdirectory(tests)
