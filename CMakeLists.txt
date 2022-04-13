@@ -20,6 +20,7 @@ add_definitions (-DTHETA_GUIDED_SEARCH)
 #add_definitions (-DGET_MISS_TRAVERSE)
 add_definitions (-DEVAL_RECALL)
 #add_definitions (-DPROFILE)
+add_definitions (-DTHREAD_LATENCY)
 
 add_subdirectory(src)
 add_subdirectory(tests)

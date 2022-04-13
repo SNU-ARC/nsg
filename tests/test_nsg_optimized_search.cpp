@@ -146,16 +146,27 @@ int main(int argc, char** argv) {
   for (unsigned i = 0; i < query_num; i++) res[i].resize(K);
 
   omp_set_num_threads(atoi(argv[10]));
+#ifdef THREAD_LATENCY
+  std::vector<double> latency_stats(query_num, 0);
+#endif
   auto s = std::chrono::high_resolution_clock::now();
   std::chrono::duration<double> diff;
 #pragma omp parallel for schedule(dynamic, 10)
   for (unsigned i = 0; i < query_num; i++) {
+#ifdef THREAD_LATENCY
+    auto query_start = std::chrono::high_resolution_clock::now();
+#endif
 #ifdef THETA_GUIDED_SEARCH
     for (unsigned int a = 0; a < (index.hash_bitwidth >> 5) * query_dim; a += 16) {
       _mm_prefetch(&index.hash_function[a], _MM_HINT_T0);
     }
 #endif
    index.SearchWithOptGraph(query_load + i * dim, K, paras, res[i].data());
+#ifdef THREAD_LATENCY
+   auto query_end = std::chrono::high_resolution_clock::now();
+   std::chrono::duration<double> query_diff = query_end - query_start;
+   latency_stats[i] = query_diff.count() * 1000000;
+#endif
   }
   auto e = std::chrono::high_resolution_clock::now();
   diff = e - s;
@@ -190,31 +201,20 @@ int main(int argc, char** argv) {
   }
   std::cout << (float)topk_hit / (query_num * K) * 100 << "%" << std::endl;
 #endif
-
-// Print result for sweep
-// #ifdef EVAL_RECALL
-//   unsigned int topk_hit = 0;
-//   for (unsigned int i = 0; i < query_num; i++) {
-//     unsigned int topk_local_hit = 0;
-//     for (unsigned int j = 0; j < K; j++) {
-//       for (unsigned int k = 0; k < K; k++) {
-//         if (res[i][j] == *(ground_truth_load + i * ground_truth_dim + k)) {
-//           topk_hit++;
-//           break;
-//         }
-//       }
-//     }
-//   }
-//   std::cout << (float)topk_hit / (query_num * K) * 100 << std::endl;
-// #endif
-// printf("%u\n%u\n%.2f\n", index.total_traverse, index.total_traverse_miss, (float)index.total_traverse_miss / index.total_traverse * 100);
-// std::cout << diff.count() << std::endl;
+#ifdef THREAD_LATENCY
+  std::sort(latency_stats.begin(), latency_stats.end());
+  double mean_latency = 0;
+  for (uint64_t q = 0; q < query_num; q++) {
+    mean_latency += latency_stats[q];
+  }
+  mean_latency /= query_num;
+  std::cout << "mean_latency: " << mean_latency << std::endl;
+  std::cout << "99% latency: " << latency_stats[(unsigned long long)(0.999 * query_num)] << std::endl;
+#endif
 
 #ifdef THETA_GUIDED_SEARCH
   delete[] hash_function_name;
   delete[] hash_vector_name;
-//  delete[] index.hashed_query;
-//  index.DeallocateHashVector();
 #endif
 
   return 0;
