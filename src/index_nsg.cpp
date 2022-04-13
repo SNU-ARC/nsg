@@ -575,7 +575,6 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
   auto query_hash_start = std::chrono::high_resolution_clock::now();
 #endif
 #ifdef THETA_GUIDED_SEARCH
-  float query_norm = dist_fast->norm(query, dimension_);
   unsigned int hash_size = hash_bitwidth >> 5;
   for (unsigned int num_integer = 0; num_integer < hash_size; num_integer++) {
     std::bitset<32> temp_bool;
