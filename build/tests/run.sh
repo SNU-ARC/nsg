@@ -2,7 +2,7 @@
 export TIME=$(date '+%Y%m%d%H%M')
 max=`nproc --all`
 T=(1)
-#T=(1 2 4 8 max)
+#T=(1 2 4 8 ${max})
 K=(10)
 L_SIZE=(58)
 #L_SIZE=(31 32 33 34 35 36 37 38 39) # sift1M 95%
