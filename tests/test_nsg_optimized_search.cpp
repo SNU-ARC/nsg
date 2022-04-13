@@ -145,14 +145,10 @@ int main(int argc, char** argv) {
   std::vector<std::vector<unsigned> > res(query_num);
   for (unsigned i = 0; i < query_num; i++) res[i].resize(K);
 
+  omp_set_num_threads(atoi(argv[10]));
   auto s = std::chrono::high_resolution_clock::now();
   std::chrono::duration<double> diff;
-  if(strcmp(argv[10],"max")){
-    omp_set_num_threads(atoi(argv[10]));
-  }else{
-    omp_set_num_threads(omp_get_max_threads());
-  }
-#pragma omp parallel for schedule(dynamic, 10) //num_threads(16)
+#pragma omp parallel for schedule(dynamic, 10)
   for (unsigned i = 0; i < query_num; i++) {
 #ifdef THETA_GUIDED_SEARCH
     for (unsigned int a = 0; a < (index.hash_bitwidth >> 5) * query_dim; a += 16) {
