@@ -92,14 +92,6 @@ int main(int argc, char** argv) {
   unsigned int* ground_truth_load = NULL;
   unsigned ground_truth_num, ground_truth_dim;
   load_data_ivecs(argv[7], ground_truth_load, ground_truth_num, ground_truth_dim);
-//  std::cout << "ground_truth_num: " << ground_truth_num << ", ground_truth_dim: " << ground_truth_dim << std::endl;
-//  for (unsigned int tmp = 0; tmp < ground_truth_num; tmp++) {
-//    for (unsigned int tmp1 = 0; tmp1 < ground_truth_dim; tmp1++) {
-//      std::cout << *(ground_truth_load + ground_truth_dim * tmp + tmp1 * sizeof(int)) << std::endl;
-//    }
-//    std::cout << std::endl << std::endl;
-//  }
-//  assert(query_dim == ground_truth_dim);
 #endif
   data_load = efanna2e::data_align(data_load, points_num, dim);
   query_load = efanna2e::data_align(query_load, query_num, query_dim);
@@ -133,10 +125,6 @@ int main(int argc, char** argv) {
     index.GenerateHashFunction(hash_function_name);
     index.GenerateHashValue(hash_vector_name);
   }
-//  index.theta_queue.reserve(32);
-//  for (int i = 0; i < 32; i++)
-//    index.theta_queue[i].distance = -1;
-//  index.hashed_query = new unsigned int[index.hash_bitwidth >> 5];
 #endif
   efanna2e::Parameters paras;
   paras.Set<unsigned>("L_search", L);
@@ -145,9 +133,14 @@ int main(int argc, char** argv) {
   std::vector<std::vector<unsigned> > res(query_num);
   for (unsigned i = 0; i < query_num; i++) res[i].resize(K);
 
-  omp_set_num_threads(atoi(argv[10]));
+  int num_threads = atoi(argv[10]);
+  omp_set_num_threads(num_threads);
 #ifdef THREAD_LATENCY
   std::vector<double> latency_stats(query_num, 0);
+#endif
+#ifdef PROFILE
+  index.num_timer = 3;
+  index.profile_time.resize(num_threads * index.num_timer, 0.0);
 #endif
   auto s = std::chrono::high_resolution_clock::now();
   std::chrono::duration<double> diff;
@@ -156,11 +149,11 @@ int main(int argc, char** argv) {
 #ifdef THREAD_LATENCY
     auto query_start = std::chrono::high_resolution_clock::now();
 #endif
-#ifdef THETA_GUIDED_SEARCH
-    for (unsigned int a = 0; a < (index.hash_bitwidth >> 5) * query_dim; a += 16) {
-      _mm_prefetch(&index.hash_function[a], _MM_HINT_T0);
-    }
-#endif
+//#ifdef THETA_GUIDED_SEARCH
+//    for (unsigned int a = 0; a < (index.hash_bitwidth >> 5) * query_dim; a += 16) {
+//      _mm_prefetch(&index.hash_function[a], _MM_HINT_T0);
+//    }
+//#endif
    index.SearchWithOptGraph(query_load + i * dim, K, paras, res[i].data());
 #ifdef THREAD_LATENCY
    auto query_end = std::chrono::high_resolution_clock::now();
@@ -171,9 +164,17 @@ int main(int argc, char** argv) {
   auto e = std::chrono::high_resolution_clock::now();
   diff = e - s;
 #ifdef PROFILE
-  std::cout << "query_hash time: " << index.profile_time[0].count() << std::endl;
-  std::cout << "hash_approx time: " << index.profile_time[1].count() << std::endl;
-  std::cout << "dist time: " << index.profile_time[2].count() << std::endl;
+  std::cout << "========Thread Latency Report========" << std::endl;
+  for (unsigned int tid = 0; tid < num_threads; tid++) {
+#ifdef THETA_GUIDED_SEARCH
+    std::cout << "query_hash time: " << index.profile_time[tid * index.num_timer] / query_num << "ms" << std::endl;
+    std::cout << "hash_approx time: " << index.profile_time[tid * index.num_timer + 1] / query_num << "ms" << std::endl;
+    std::cout << "dist time: " << index.profile_time[tid * index.num_timer + 2] / query_num << "ms" << std::endl;
+#else
+    std::cout << "dist time: " << index.profile_time[tid * index.num_timer + 2] / query_num << "ms" << std::endl;
+#endif
+  }
+  std::cout << "=====================================" << std::endl;
 #endif
 
 // Print result
@@ -208,8 +209,8 @@ int main(int argc, char** argv) {
     mean_latency += latency_stats[q];
   }
   mean_latency /= query_num;
-  std::cout << "mean_latency: " << mean_latency << std::endl;
-  std::cout << "99% latency: " << latency_stats[(unsigned long long)(0.999 * query_num)] << std::endl;
+  std::cout << "mean_latency: " << mean_latency << "ms" << std::endl;
+  std::cout << "99% latency: " << latency_stats[(unsigned long long)(0.999 * query_num)] << "ms"<< std::endl;
 #endif
 
 #ifdef THETA_GUIDED_SEARCH
