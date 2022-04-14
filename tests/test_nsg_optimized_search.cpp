@@ -165,15 +165,19 @@ int main(int argc, char** argv) {
   diff = e - s;
 #ifdef PROFILE
   std::cout << "========Thread Latency Report========" << std::endl;
+  double* timer = (double*)calloc(index.num_timer, sizeof(double));
   for (unsigned int tid = 0; tid < num_threads; tid++) {
-#ifdef THETA_GUIDED_SEARCH
-    std::cout << "query_hash time: " << index.profile_time[tid * index.num_timer] / query_num << "ms" << std::endl;
-    std::cout << "hash_approx time: " << index.profile_time[tid * index.num_timer + 1] / query_num << "ms" << std::endl;
-    std::cout << "dist time: " << index.profile_time[tid * index.num_timer + 2] / query_num << "ms" << std::endl;
-#else
-    std::cout << "dist time: " << index.profile_time[tid * index.num_timer + 2] / query_num << "ms" << std::endl;
-#endif
+    timer[0] += index.profile_time[tid * index.num_timer];
+    timer[1] += index.profile_time[tid * index.num_timer + 1];
+    timer[2] += index.profile_time[tid * index.num_timer + 2];
   }
+#ifdef THETA_GUIDED_SEARCH
+    std::cout << "query_hash time: " << timer[0] / query_num << "ms" << std::endl;
+    std::cout << "hash_approx time: " << timer[1] / query_num << "ms" << std::endl;
+    std::cout << "dist time: " << timer[2] / query_num << "ms" << std::endl;
+#else
+    std::cout << "dist time: " << timer[2] / query_num << "ms" << std::endl;
+#endif
   std::cout << "=====================================" << std::endl;
 #endif
 
