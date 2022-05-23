@@ -1,8 +1,10 @@
 #!/bin/bash
 export TIME=$(date '+%Y%m%d%H%M')
-T=(max)
+max=`nproc --all`
+T=(1)
+#T=(1 2 4 8 ${max})
 K=(10)
-L_SIZE=(100)
+L_SIZE=(58)
 #L_SIZE=(31 32 33 34 35 36 37 38 39) # sift1M 95%
 #L_SIZE=(51 52 53 54 55 56 57 58 59) # crawl/deep1M 95%
 #L_SIZE=(61 62 63 64 65 66 67 68 69)

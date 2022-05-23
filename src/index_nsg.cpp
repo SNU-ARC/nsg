@@ -507,15 +507,10 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
   std::vector<unsigned> init_ids(L);
   // std::mt19937 rng(rand());
   // GenRandom(rng, init_ids.data(), L, (unsigned) nd_);
+  unsigned int tid = omp_get_thread_num();
 
   std::vector<HashNeighbor> theta_queue(512);
   unsigned int* hashed_query = new unsigned int[hash_bitwidth >> 5];
-#ifdef PROFILE
-  // SJ: Profile_timer
-  profile_time.push_back(std::chrono::high_resolution_clock::now() - std::chrono::high_resolution_clock::now()); // 0: query_hash time
-  profile_time.push_back(std::chrono::high_resolution_clock::now() - std::chrono::high_resolution_clock::now()); // 1: hash_approx time
-  profile_time.push_back(std::chrono::high_resolution_clock::now() - std::chrono::high_resolution_clock::now()); // 2: dist time
-#endif
 
   boost::dynamic_bitset<> flags{nd_, 0};
   unsigned tmp_l = 0;
@@ -575,7 +570,6 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
   auto query_hash_start = std::chrono::high_resolution_clock::now();
 #endif
 #ifdef THETA_GUIDED_SEARCH
-  float query_norm = dist_fast->norm(query, dimension_);
   unsigned int hash_size = hash_bitwidth >> 5;
   for (unsigned int num_integer = 0; num_integer < hash_size; num_integer++) {
     std::bitset<32> temp_bool;
@@ -590,7 +584,8 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
 
 #ifdef PROFILE
   auto query_hash_end = std::chrono::high_resolution_clock::now();
-  profile_time[0] += (query_hash_end - query_hash_start);
+  std::chrono::duration<double> query_hash_diff = query_hash_end - query_hash_start;
+  profile_time[tid * num_timer] += query_hash_diff.count() * 1000000;
 #endif
 
   int k = 0;
@@ -694,7 +689,8 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
 
 #ifdef PROFILE
       auto hash_approx_end = std::chrono::high_resolution_clock::now();
-      profile_time[1] += (hash_approx_end - hash_approx_start);
+      std::chrono::duration<double> hash_approx_diff = hash_approx_end - hash_approx_start;
+      profile_time[tid * num_timer + 1] += hash_approx_diff.count() * 1000000;
       auto dist_start = std::chrono::high_resolution_clock::now();
 #endif
 #ifdef THETA_GUIDED_SEARCH
@@ -740,7 +736,8 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
       }
 #ifdef PROFILE
       auto dist_end = std::chrono::high_resolution_clock::now();
-      profile_time[2] += (dist_end - dist_start);
+      std::chrono::duration<double> dist_diff = dist_end - dist_start;
+      profile_time[tid * num_timer + 2] += dist_diff.count() * 1000000;
 #endif
     }
     if (nk <= k)

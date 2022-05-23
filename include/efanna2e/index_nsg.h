@@ -41,17 +41,19 @@ class IndexNSG : public Index {
       const Parameters &parameters,
       unsigned *indices);
   void OptimizeGraph(float* data);
-//  void OptimizeGraph(float* data);
 
   // SJ: For profile
   unsigned int total_traverse = 0;
   unsigned int total_traverse_miss = 0;
-  std::vector<std::chrono::duration<double> > profile_time;
   void GetNeighborList();
   void GetAllVectors();
   void CountZeroElements();
   void CountNegativeElements();
   void GetMinMaxElement();  
+#ifdef PROFILE
+  unsigned int num_timer = 0;
+  std::vector<double> profile_time;
+#endif
 
   // SJ: For SRP
   unsigned int hash_bitwidth;
@@ -63,9 +65,7 @@ class IndexNSG : public Index {
   void DeallocateHashVector ();
   bool LoadHashFunction (char* file_name);
   bool LoadHashValue (char* file_name);
-//  std::vector<HashNeighbor> theta_queue;
   float threshold_percent;
-//  unsigned int* hashed_query;
 
   protected:
     typedef std::vector<std::vector<unsigned > > CompactGraph;
