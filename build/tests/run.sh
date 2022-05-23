@@ -1,8 +1,8 @@
 #!/bin/bash
 export TIME=$(date '+%Y%m%d%H%M')
-T=(1 2 4 8 max)
-K=(1 10)
-L_SIZE=(30)
+T=(max)
+K=(10)
+L_SIZE=(100)
 #L_SIZE=(31 32 33 34 35 36 37 38 39) # sift1M 95%
 #L_SIZE=(51 52 53 54 55 56 57 58 59) # crawl/deep1M 95%
 #L_SIZE=(61 62 63 64 65 66 67 68 69)
@@ -55,6 +55,25 @@ nsg_deep1M() {
   sudo sh -c "sync && echo 3 > /proc/sys/vm/drop_caches"
   ./test_nsg_optimized_search deep1M/deep1m_base.fvecs deep1M/deep1m_query.fvecs deep1M.nsg ${1} ${2} deep1M_nsg_result.ivecs \
     deep1M/deep1m_groundtruth.ivecs 512 0.3 ${4}> deep1M_search_L${1}K${2}_${3}_T${4}.log
+}
+
+nsg_deep100M() {
+  export sub_num=(0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15)
+  for id in ${sub_num[@]}; do
+    if [ ! -f "deep100M_${id}.nsg" ]; then
+      echo "Converting deep100M_400nn_${id}.graph kNN graph to deep100M_${id}.nsg"
+      if [ -f "efanna_graph/deep100M_400nn_${id}.graph" ]; then
+        ./test_nsg_index deep100M/deep100M_base_${id}.fvecs efanna_graph/deep100M_400nn_${id}.graph 200 40 1000 deep100M_${id}.nsg > deep100M_index_${id}_${TIME}.log
+      else
+        echo "ERROR: deep100M_400nn_${id}.graph does not exist"
+        exit 1
+      fi
+    fi
+  done
+  echo "Perform kNN searching using NSG index (deep100M_L${1}K${2}ID${id})"
+  sudo sh -c "sync && echo 3 > /proc/sys/vm/drop_caches"
+  ./test_nsg_optimized_search deep100M/deep100M_base_${id}.fvecs deep100M/deep100M_query.fvecs deep100M_${id}.nsg ${1} ${2} \
+    deep100M_nsg_result_${id}.ivecs deep100M/deep100M_groundtruth.ivecs 512 0.3 > deep100M_search_L${1}K${2}_${3}_T${4}_${id}.log
 }
 
 nsg_glove-100() {
@@ -113,6 +132,15 @@ elif [ "${1}" == "deep1M" ]; then
       declare -i l=l_size
       for t in ${T[@]}; do
         nsg_deep1M ${l} ${k} ${2} ${t}
+      done
+    done
+  done
+elif [ "${1}" == "deep100M" ]; then
+  for k in ${K[@]}; do
+    for l_size in ${L_SIZE[@]}; do
+      declare -i l=l_size
+      for t in ${T[@]}; do
+        nsg_deep100M ${l} ${k} ${2} ${t}
       done
     done
   done
