@@ -87,6 +87,8 @@ int main(int argc, char** argv) {
 
   // SJ: Here multi graph starts
   unsigned int num_threads = atoi(argv[10]);
+  std::cout << "num_threads: " << num_threads << std::endl;
+  omp_set_num_threads(num_threads);
   std::vector<std::vector<unsigned> > res(query_num);
   for (unsigned i = 0; i < query_num; i++) res[i].resize(K * 16);
   std::vector<double> global_search_time(16, 0.0);
