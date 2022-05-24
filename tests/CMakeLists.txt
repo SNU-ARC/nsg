@@ -26,3 +26,6 @@ target_link_libraries(ours ourslib -ltcmalloc)
 #target_compile_definitions(exact_aid PRIVATE GET_MISS_TRAVERSE EVAL_RECALL THETA_GUIDED_SEARCH EXACT_AID_SEARCH)
 #target_compile_definitions(ours PRIVATE GET_MISS_TRAVERSE EVAL_RECALL THETA_GUIDED_SEARCH)
 
+
+add_executable(test_nsg_optimized_search_multi test_nsg_optimized_search_multi.cpp)
+target_link_libraries(test_nsg_optimized_search_multi ${PROJECT_NAME} -ltcmalloc)

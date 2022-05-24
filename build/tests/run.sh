@@ -1,14 +1,14 @@
 #!/bin/bash
 export TIME=$(date '+%Y%m%d%H%M')
 max=`nproc --all`
-T=(1)
+T=(116)
 #T=(1 2 4 8 ${max})
-K=(10)
-L_SIZE=(58)
+K=(1 10)
+#L_SIZE=(100)
 #L_SIZE=(31 32 33 34 35 36 37 38 39) # sift1M 95%
 #L_SIZE=(51 52 53 54 55 56 57 58 59) # crawl/deep1M 95%
 #L_SIZE=(61 62 63 64 65 66 67 68 69)
-#L_SIZE=(20 30 40 50 60 70 80 90 100 110 120 130 140 150 160 170 180 190 200)
+L_SIZE=(10 20 30 40 50 60 70 80 90 100 110 120 130 140 150 160 170 180 190 200)
 #L_SIZE=(250 300 350 400 450 500 550 600 650 700 750 800 850 900 950 1000)
 
 nsg_sift1M() {
@@ -72,10 +72,10 @@ nsg_deep100M() {
       fi
     fi
   done
-  echo "Perform kNN searching using NSG index (deep100M_L${1}K${2}ID${id})"
+  echo "Perform kNN searching using NSG index (deep100M_L${1}K${2})"
   sudo sh -c "sync && echo 3 > /proc/sys/vm/drop_caches"
-  ./test_nsg_optimized_search deep100M/deep100M_base_${id}.fvecs deep100M/deep100M_query.fvecs deep100M_${id}.nsg ${1} ${2} \
-    deep100M_nsg_result_${id}.ivecs deep100M/deep100M_groundtruth.ivecs 512 0.3 > deep100M_search_L${1}K${2}_${3}_T${4}_${id}.log
+  ./test_nsg_optimized_search_multi deep100M/deep100M_base.fvecs deep100M/deep100M_query.fvecs deep100M.nsg ${1} ${2} \
+    deep100M_nsg_result.ivecs deep100M/deep100M_groundtruth.ivecs 512 0.3 ${3} > deep100M_search_L${1}K${2}_${3}_T${4}.log
 }
 
 nsg_glove-100() {
