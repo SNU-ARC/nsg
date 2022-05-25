@@ -183,6 +183,10 @@ int main(int argc, char** argv) {
 
   std::sort(global_search_time.begin(), global_search_time.end());
   if (num_threads > 1) {
+    for (unsigned int iter = 0; iter < 16; iter++) {
+      std::cout << iter << "th Search Time: " << global_search_time[iter] << std::endl;
+      std::cout << iter << "th QPS: " << query_num / global_search_time[iter] << std::endl;
+    }
     std::cout << "Search Time: " << global_search_time[15] << std::endl;
     std::cout << "QPS: " << query_num / global_search_time[15] << std::endl;
   }

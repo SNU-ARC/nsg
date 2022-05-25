@@ -668,7 +668,7 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
 #endif
         HashNeighbor cat_hamming_id(id, hamming_distance);
 //        InsertIntoPool (theta_queue.data(), theta_queue_size_limit, cat_hamming_id);
-        if (theta_queue_size < theta_queue_size_limit) {
+        if ((theta_queue_size < theta_queue_size_limit) || (hamming_distance == hamming_distance_max.distance)) {
           theta_queue[theta_queue_size] = cat_hamming_id;
           theta_queue_size++;
           index = std::max_element(theta_queue.begin(), theta_queue.begin() + theta_queue_size_limit);
@@ -677,7 +677,8 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
         }
         else if (hamming_distance < hamming_distance_max.distance) {
           theta_queue[hamming_distance_max.id] = cat_hamming_id;
-          index = std::max_element(theta_queue.begin(), theta_queue.begin() + theta_queue_size_limit);
+          theta_queue_size = theta_queue_size_limit;
+          index = std::max_element(theta_queue.begin(), theta_queue.begin() + theta_queue_size);
           hamming_distance_max.id = std::distance(theta_queue.begin(), index);
           hamming_distance_max.distance = theta_queue[hamming_distance_max.id].distance;
         }
@@ -694,7 +695,8 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
       auto dist_start = std::chrono::high_resolution_clock::now();
 #endif
 #ifdef THETA_GUIDED_SEARCH
-      for (unsigned int m = 0; m < theta_queue_size_limit; m++) {
+//      std::cout << "theta_queue_size: " << theta_queue_size << ", theta_queue_size_limit: " << theta_queue_size_limit << std::endl;
+      for (unsigned int m = 0; m < theta_queue_size; m++) {
         unsigned int id = theta_queue[m].id;
         theta_queue[m].distance = -1;
 #else
