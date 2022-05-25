@@ -134,16 +134,18 @@ int main(int argc, char** argv) {
     index.OptimizeGraph(data_load);
 #ifdef THETA_GUIDED_SEARCH
     // SJ: For profile, related with #THETA_GUIDED_SEARCH flag
-    char* hash_function_name = new char[strlen(argv[3]) + strlen(".hash_function_") + strlen(argv[9]) + 1];
-    char* hash_vector_name = new char[strlen(argv[3]) + strlen(".hash_vector") + strlen(argv[9]) + 1];
-    strcpy(hash_function_name, argv[3]);
+    char* hash_function_name = new char[strlen(sub_indexname) + strlen(".hash_function_") + strlen(argv[8]) + 2];
+    char* hash_vector_name = new char[strlen(sub_indexname) + strlen(".hash_vector_") + strlen(argv[8]) + 2];
+    strcpy(hash_function_name, sub_indexname);
     strcat(hash_function_name, ".hash_function_");
     strcat(hash_function_name, argv[8]);
-    strcat(hash_function_name, "b");
-    strcpy(hash_vector_name, argv[3]);
+    strcat(hash_function_name, "b\0");
+    strcpy(hash_vector_name, sub_indexname);
     strcat(hash_vector_name, ".hash_vector_");
     strcat(hash_vector_name, argv[8]);
-    strcat(hash_vector_name, "b");
+    strcat(hash_vector_name, "b\0");
+    std::cout << hash_function_name << std::endl;
+    std::cout << hash_vector_name << std::endl;
 
     if (index.LoadHashFunction(hash_function_name)) {
       if (!index.LoadHashValue(hash_vector_name))

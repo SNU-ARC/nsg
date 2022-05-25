@@ -695,7 +695,6 @@ void IndexNSG::SearchWithOptGraph(const float *query, size_t K,
       auto dist_start = std::chrono::high_resolution_clock::now();
 #endif
 #ifdef THETA_GUIDED_SEARCH
-//      std::cout << "theta_queue_size: " << theta_queue_size << ", theta_queue_size_limit: " << theta_queue_size_limit << std::endl;
       for (unsigned int m = 0; m < theta_queue_size; m++) {
         unsigned int id = theta_queue[m].id;
         theta_queue[m].distance = -1;
@@ -1010,7 +1009,7 @@ void IndexNSG::GenerateHashValue (char* file_name) {
     unsigned int* neighbors = (unsigned int*)(opt_graph_ + node_size * i + data_len);
     unsigned int MaxM = *neighbors;
     neighbors++;
-    unsigned int* hash_value = (unsigned int*)(opt_graph_ + node_size * i + data_len + neighbor_len);
+    unsigned int* hash_value = (unsigned int*)(opt_graph_ + node_size * nd_ + hash_len * i);
 
     float* vertex = (float *)(opt_graph_ + node_size * i + sizeof(float));
     for (unsigned int i = 0; i < hash_bitwidth / (8 * sizeof(unsigned int)); i++) {
@@ -1028,7 +1027,7 @@ void IndexNSG::GenerateHashValue (char* file_name) {
   for (unsigned int i = 0; i < nd_; i++) {
 //    unsigned int* hash_value = (unsigned int*)(opt_graph_ + node_size * i + data_len + neighbor_len);
     for (unsigned int j = 0; j < (hash_bitwidth >> 5); j++) { 
-      file_hash_value.write((char*)(hash_value + (hash_len >> 2) * i + j), 4);
+      file_hash_value.write((char*)(hash_value + (hash_bitwidth >> 5) * i + j), 4);
     }
   }
   file_hash_value.close();
@@ -1039,6 +1038,7 @@ void IndexNSG::DeallocateHashVector () {
 bool IndexNSG::LoadHashFunction (char* file_name) {
   std::ifstream file_hash_function(file_name, std::ios::binary);
   if (file_hash_function.is_open()) {
+    std::cout << "LoadHashFunction" << std::endl;
     unsigned int hash_bitwidth_temp;
     file_hash_function.read((char*)&hash_bitwidth_temp, sizeof(unsigned int));
     if (hash_bitwidth != hash_bitwidth_temp) {
@@ -1063,12 +1063,13 @@ bool IndexNSG::LoadHashFunction (char* file_name) {
 bool IndexNSG::LoadHashValue (char* file_name) {
   std::ifstream file_hash_value(file_name, std::ios::binary);
   if (file_hash_value.is_open()) {
+    std::cout << "LoadHashVector" << std::endl;
     hash_value = (unsigned int*)(opt_graph_ + node_size * nd_);
     unsigned int* hash_value_temp = new unsigned int[nd_ * (hash_bitwidth >> 5)];
     hash_value_temp = (unsigned int*)memalign(32, nd_ * (hash_bitwidth >> 3));
     for (unsigned int i = 0; i < nd_; i++) {
       for (unsigned int j = 0; j < (hash_bitwidth >> 5); j++) {
-        file_hash_value.read((char*)(hash_value_temp + (hash_len >> 2) * i + j), 4);
+        file_hash_value.read((char*)(hash_value + (hash_bitwidth >> 5) * i + j), 4);
       }
     }
     file_hash_value.close();
