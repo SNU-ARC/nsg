@@ -1047,13 +1047,8 @@ bool IndexNSG::LoadHashFunction (char* file_name) {
     }
 
     hash_function = (float*)(opt_graph_ + node_size * nd_ + hash_len * nd_);
-//    hash_function = (float*)(opt_graph_ + node_size * nd_);
-    float* hash_function_temp = new float[dimension_ * hash_bitwidth];
-    hash_function_temp = (float*)memalign(32, dimension_ * hash_bitwidth * sizeof(float));
-    file_hash_function.read((char*)hash_function_temp, dimension_ * hash_bitwidth * sizeof(float));
+    file_hash_function.read((char*)hash_function, dimension_ * hash_bitwidth * sizeof(float));
     file_hash_function.close();
-    memcpy(hash_function, hash_function_temp, dimension_ * hash_bitwidth * sizeof(float));
-    delete[] hash_function_temp;
     return true;
   }
   else {
@@ -1065,16 +1060,12 @@ bool IndexNSG::LoadHashValue (char* file_name) {
   if (file_hash_value.is_open()) {
     std::cout << "LoadHashVector" << std::endl;
     hash_value = (unsigned int*)(opt_graph_ + node_size * nd_);
-    unsigned int* hash_value_temp = new unsigned int[nd_ * (hash_bitwidth >> 5)];
-    hash_value_temp = (unsigned int*)memalign(32, nd_ * (hash_bitwidth >> 3));
     for (unsigned int i = 0; i < nd_; i++) {
       for (unsigned int j = 0; j < (hash_bitwidth >> 5); j++) {
         file_hash_value.read((char*)(hash_value + (hash_bitwidth >> 5) * i + j), 4);
       }
     }
     file_hash_value.close();
-    memcpy(hash_value, hash_value_temp, nd_ * (hash_bitwidth >> 3));
-    delete[] hash_value_temp;
     
     return true;
   }
