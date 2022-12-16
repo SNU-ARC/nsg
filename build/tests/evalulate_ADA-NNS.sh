@@ -1,7 +1,7 @@
 #!/bin/bash
 export TIME=$(date '+%Y%m%d%H%M')
-max=`nproc --all`
-T=(1)
+MAX_THREADS=`nproc --all`
+THREAD=(1)
 K=(10)
 L_SIZE=(62)
 
@@ -100,63 +100,68 @@ nsg_deep100M_16T() {
     deep100M_nsg_result.ivecs deep100M/deep100M_groundtruth.ivecs 0.3 512 ${4} > deep100M_search_L${1}K${2}_${3}_T${4}.log
 }
 
-if [ "${1}" == "sift1M" ]; then
-  for k in ${K[@]}; do
-    for l_size in ${L_SIZE[@]}; do
-      declare -i l=l_size
-      for t in ${T[@]}; do
-        nsg_sift1M ${l} ${k} ${2} ${t}
+if [[ ${#} -eq 1 ]]; then
+  if [ "${1}" == "sift1M" ]; then
+    for k in ${K[@]}; do
+      for l_size in ${L_SIZE[@]}; do
+        declare -i l=l_size
+        for t in ${THREAD[@]}; do
+          nsg_sift1M ${l} ${k} ADA-NNS ${t}
+        done
       done
     done
-  done
-elif [ "${1}" == "gist1M" ]; then
-  for k in ${K[@]}; do
-    for l_size in ${L_SIZE[@]}; do
-      declare -i l=l_size
-      for t in ${T[@]}; do
-        nsg_gist1M ${l} ${k} ${2} ${t}
+  elif [ "${1}" == "gist1M" ]; then
+    for k in ${K[@]}; do
+      for l_size in ${L_SIZE[@]}; do
+        declare -i l=l_size
+        for t in ${THREAD[@]}; do
+          nsg_gist1M ${l} ${k} ADA-NNS ${t}
+        done
       done
     done
-  done
-elif [ "${1}" == "crawl" ]; then
-  for k in ${K[@]}; do
-    for l_size in ${L_SIZE[@]}; do
-      declare -i l=l_size
-      for t in ${T[@]}; do
-        nsg_crawl ${l} ${k} ${2} ${t}
+  elif [ "${1}" == "crawl" ]; then
+    for k in ${K[@]}; do
+      for l_size in ${L_SIZE[@]}; do
+        declare -i l=l_size
+        for t in ${THREAD[@]}; do
+          nsg_crawl ${l} ${k} ADA-NNS ${t}
+        done
       done
     done
-  done
-elif [ "${1}" == "deep1M" ]; then
-  for k in ${K[@]}; do
-    for l_size in ${L_SIZE[@]}; do
-      declare -i l=l_size
-      for t in ${T[@]}; do
-        nsg_deep1M ${l} ${k} ${2} ${t}
+  elif [ "${1}" == "deep1M" ]; then
+    for k in ${K[@]}; do
+      for l_size in ${L_SIZE[@]}; do
+        declare -i l=l_size
+        for t in ${THREAD[@]}; do
+          nsg_deep1M ${l} ${k} ADA-NNS ${t}
+        done
       done
     done
-  done
-elif [ "${1}" == "deep100M_16T" ]; then
-  for k in ${K[@]}; do
-    for l_size in ${L_SIZE[@]}; do
-      declare -i l=l_size
-      for t in ${T[@]}; do
-        nsg_deep100M_16T ${l} ${k} ${2} ${t}
+  elif [ "${1}" == "deep100M_16T" ]; then
+    for k in ${K[@]}; do
+      for l_size in ${L_SIZE[@]}; do
+        declare -i l=l_size
+        for t in ${THREAD[@]}; do
+          nsg_deep100M_16T ${l} ${k} ADA-NNS ${t}
+        done
       done
     done
-  done
-elif [ "${1}" == "all" ]; then
-  for k in ${K[@]}; do
-    for l_size in ${L_SIZE[@]}; do
-      declare -i l=l_size
-      for t in ${T[@]}; do
-        nsg_sift1M ${l} ${k} ${2} ${t}
-        nsg_gist1M ${l} ${k} ${2} ${t}
-        nsg_crawl ${l} ${k} ${2} ${t}
-        nsg_deep1M ${l} ${k} ${2} ${t}
+  elif [ "${1}" == "all" ]; then
+    for k in ${K[@]}; do
+      for l_size in ${L_SIZE[@]}; do
+        declare -i l=l_size
+        for t in ${THREAD[@]}; do
+          nsg_sift1M ${l} ${k} ADA-NNS ${t}
+          nsg_gist1M ${l} ${k} ADA-NNS ${t}
+          nsg_crawl ${l} ${k} ADA-NNS ${t}
+          nsg_deep1M ${l} ${k} ADA-NNS ${t}
+          nsg_deep100M_16T ${l} ${k} ADA-NNS ${t}
+        done
       done
     done
-  done
+  else
+    echo "Usage: ./evaluate_baseline.sh [dataset]"
+  fi
 else
-  echo "Please use either 'sift1M', 'gist1M', 'crawl', 'deep1M', 'deep100M_16T', or 'all' as an argument"
+  echo "Usage: ./evaluate_baseline.sh [dataset]"
 fi
