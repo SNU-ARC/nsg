@@ -11,16 +11,13 @@ else()
     message(FATAL_ERROR "no OpenMP supprot")
 endif()
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-builtin-malloc -fno-builtin-calloc -fno-builtin-realloc -fno-builtin-free")
-add_definitions (-std=c++11 -O3 -lboost -march=native -Wall -DINFO)
-#add_definitions (-std=c++11 -O3 -lboost -march=native -Wall -DINFO -DGET_MISS_TRAVERSE -DEVAL_RECALL)
-#add_definitions (-std=c++11 -O3 -lboost -march=native -Wall -DINFO -DTHETA_GUIDED_SEARCH -DGET_MISS_TRAVERSE -DEVAL_RECALL)# -DPROFILE)
-#add_definitions (-std=c++11 -O3 -lboost -march=native -Wall -DINFO -DTHETA_GUIDED_SEARCH -DGET_MISS_TRAVERSE -DEXACT_SEARCH -DEVAL_RECALL)
-#add_definitions (-std=c++11 -O3 -lboost -march=native -Wall -DINFO -DTHETA_GUIDED_SEARCH -DGET_MISS_TRAVERSE -DEXACT_SEARCH -DEVAL_RECALL -DGET_TOPK_SNAPSHOT)
-#add_definitions (-DTHETA_GUIDED_SEARCH)
-#add_definitions (-DGET_MISS_TRAVERSE)
+add_definitions (-std=c++11 -O3 -lboost -march=native -Wall -DINFO -g3)
+
 add_definitions (-DEVAL_RECALL)
-add_definitions (-DPROFILE)
-add_definitions (-DTHREAD_LATENCY)
+#add_definitions (-DGET_DIST_COMP)
+#add_definitions (-DPROFILE) # [ARC-SJ] Enable to measure the performance bottleneck
+#add_definitions(-DMMAP_HUGETLB) # [ARC-SJ] Enable to allocate huge page instead of malloc
+#add_definitions (-DTHREAD_LATENCY)
 
 add_subdirectory(src)
 add_subdirectory(tests)

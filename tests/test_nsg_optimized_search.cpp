@@ -31,15 +31,15 @@ void load_data(char* filename, float*& data, unsigned& num,
   in.close();
 }
 
+// [ARC-SJ]: Read groundtruth 
 void load_data_ivecs(char* filename, unsigned int*& data, unsigned& num,
-               unsigned& dim) {  // load data with sift10K pattern
+               unsigned& dim) { 
   std::ifstream in(filename, std::ios::binary);
   if (!in.is_open()) {
     std::cout << "open file error" << std::endl;
     exit(-1);
   }
   in.read((char*)&dim, 4);
-  // std::cout<<"data dimension: "<<dim<<std::endl;
   in.seekg(0, std::ios::end);
   std::ios::pos_type ss = in.tellg();
   size_t fsize = (size_t)ss;
@@ -67,12 +67,21 @@ void save_result(const char* filename,
 }
 
 int main(int argc, char** argv) {
+#ifdef ADA_NNS
   if (argc != 11) {
     std::cout << argv[0]
-              << " data_file query_file nsg_path search_L search_K result_path ground_truth_path hash_bitwidth threshold_percent num_of_thread"
+              << " data_file query_file nsg_path search_L search_K result_path ground_truth_path hash_bitwidth tau num_threads"
               << std::endl;
     exit(-1);
   }
+#else
+  if (argc != 9) {
+    std::cout << argv[0]
+              << " data_file query_file nsg_path search_L search_K result_path ground_truth_path num_threads"
+              << std::endl;
+    exit(-1);
+  }
+#endif
   float* data_load = NULL;
   unsigned points_num, dim;
   load_data(argv[1], data_load, points_num, dim);
@@ -97,34 +106,36 @@ int main(int argc, char** argv) {
   query_load = efanna2e::data_align(query_load, query_num, query_dim);
   efanna2e::IndexNSG index(dim, points_num, efanna2e::FAST_L2, nullptr);
   index.Load(argv[3]);
-#ifdef THETA_GUIDED_SEARCH
-  index.hash_bitwidth = (unsigned)atoi(argv[8]);
-  index.threshold_percent = (float)atof(argv[9]);
-#else
-  index.hash_bitwidth = 0;
+#ifdef ADA_NNS
+  float tau = (float)atof(argv[8]);
+  uint64_t hash_bitwidth = (uint64_t)atoi(argv[9]);
+  index.SetHashBitwidth(hash_bitwidth);
+  index.SetTau(tau);
 #endif
   index.OptimizeGraph(data_load);
-#ifdef THETA_GUIDED_SEARCH
-  // SJ: For profile, related with #THETA_GUIDED_SEARCH flag
+#ifdef ADA_NNS
+  // SJ: For profile, related with #ADA_NNS flag
   char* hash_function_name = new char[strlen(argv[3]) + strlen(".hash_function_") + strlen(argv[9]) + 1];
-  char* hash_vector_name = new char[strlen(argv[3]) + strlen(".hash_vector") + strlen(argv[9]) + 1];
+  char* hashed_set_name = new char[strlen(argv[3]) + strlen(".hashed_set") + strlen(argv[9]) + 1];
   strcpy(hash_function_name, argv[3]);
   strcat(hash_function_name, ".hash_function_");
-  strcat(hash_function_name, argv[8]);
+  strcat(hash_function_name, argv[9]);
   strcat(hash_function_name, "b");
-  strcpy(hash_vector_name, argv[3]);
-  strcat(hash_vector_name, ".hash_vector_");
-  strcat(hash_vector_name, argv[8]);
-  strcat(hash_vector_name, "b");
+  strcpy(hashed_set_name, argv[3]);
+  strcat(hashed_set_name, ".hashed_set_");
+  strcat(hashed_set_name, argv[9]);
+  strcat(hashed_set_name, "b");
 
-  if (index.LoadHashFunction(hash_function_name)) {
-    if (!index.LoadHashValue(hash_vector_name))
-      index.GenerateHashValue(hash_vector_name);
+  if (index.ReadHashFunction(hash_function_name)) {
+    if (!index.ReadHashedSet(hashed_set_name))
+      index.GenerateHashedSet(hashed_set_name);
   }
   else {
     index.GenerateHashFunction(hash_function_name);
-    index.GenerateHashValue(hash_vector_name);
+    index.GenerateHashedSet(hashed_set_name);
   }
+  delete[] hash_function_name;
+  delete[] hashed_set_name;
 #endif
   efanna2e::Parameters paras;
   paras.Set<unsigned>("L_search", L);
@@ -139,22 +150,21 @@ int main(int argc, char** argv) {
   std::vector<double> latency_stats(query_num, 0);
 #endif
 #ifdef PROFILE
-  index.num_timer = 3;
-  index.profile_time.resize(num_threads * index.num_timer, 0.0);
+  index.SetTimer(num_threads);
 #endif
+  // [ARC-SJ]: Minor optimization of greedy search 
+  //           Allocate visited list once
+  //           For large-scale dataset (e.g., DEEP100M),
+  //           repeated allocation is a huge overhead
+  boost::dynamic_bitset<> flags{index.Get_nd(), 0};
   auto s = std::chrono::high_resolution_clock::now();
   std::chrono::duration<double> diff;
-#pragma omp parallel for schedule(dynamic, 10)
+#pragma omp parallel for schedule(dynamic, 1)
   for (unsigned i = 0; i < query_num; i++) {
 #ifdef THREAD_LATENCY
     auto query_start = std::chrono::high_resolution_clock::now();
 #endif
-//#ifdef THETA_GUIDED_SEARCH
-//    for (unsigned int a = 0; a < (index.hash_bitwidth >> 5) * query_dim; a += 16) {
-//      _mm_prefetch(&index.hash_function[a], _MM_HINT_T0);
-//    }
-//#endif
-   index.SearchWithOptGraph(query_load + i * dim, K, paras, res[i].data());
+   index.SearchWithOptGraph(query_load + i * dim, flags, K, paras, res[i].data());
 #ifdef THREAD_LATENCY
    auto query_end = std::chrono::high_resolution_clock::now();
    std::chrono::duration<double> query_diff = query_end - query_start;
@@ -163,23 +173,6 @@ int main(int argc, char** argv) {
   }
   auto e = std::chrono::high_resolution_clock::now();
   diff = e - s;
-#ifdef PROFILE
-  std::cout << "========Thread Latency Report========" << std::endl;
-  double* timer = (double*)calloc(index.num_timer, sizeof(double));
-  for (unsigned int tid = 0; tid < num_threads; tid++) {
-    timer[0] += index.profile_time[tid * index.num_timer];
-    timer[1] += index.profile_time[tid * index.num_timer + 1];
-    timer[2] += index.profile_time[tid * index.num_timer + 2];
-  }
-#ifdef THETA_GUIDED_SEARCH
-    std::cout << "query_hash time: " << timer[0] / query_num << "ms" << std::endl;
-    std::cout << "hash_approx time: " << timer[1] / query_num << "ms" << std::endl;
-    std::cout << "dist time: " << timer[2] / query_num << "ms" << std::endl;
-#else
-    std::cout << "dist time: " << timer[2] / query_num << "ms" << std::endl;
-#endif
-  std::cout << "=====================================" << std::endl;
-#endif
 
 // Print result
   std::cout << "search time: " << diff.count() << "\n";
@@ -187,14 +180,9 @@ int main(int argc, char** argv) {
 
   save_result(argv[6], res);
 
-#ifdef GET_MISS_TRAVERSE
-  std::cout << std::endl;
-  printf("[Total_summary] # of traversed: %u, # of invalid: %u, ratio: %.2f%%\n", index.total_traverse, index.total_traverse_miss, (float)index.total_traverse_miss / index.total_traverse * 100);
-#endif
 #ifdef EVAL_RECALL
   unsigned int topk_hit = 0;
   for (unsigned int i = 0; i < query_num; i++) {
-    unsigned int topk_local_hit = 0;
     for (unsigned int j = 0; j < K; j++) {
       for (unsigned int k = 0; k < K; k++) {
         if (res[i][j] == *(ground_truth_load + i * ground_truth_dim + k)) {
@@ -216,11 +204,35 @@ int main(int argc, char** argv) {
   std::cout << "mean_latency: " << mean_latency << "ms" << std::endl;
   std::cout << "99% latency: " << latency_stats[(unsigned long long)(0.999 * query_num)] << "ms"<< std::endl;
 #endif
-
-#ifdef THETA_GUIDED_SEARCH
-  delete[] hash_function_name;
-  delete[] hash_vector_name;
+#ifdef GET_DIST_COMP
+  std::cout << "========Distance Compute Report========" << std::endl;
+  std::cout << "# of distance compute: " << index.GetTotalDistComp() << std::endl;
+  std::cout << "# of missed distance compute: " << index.GetTotalDistCompMiss() << std::endl;
+  std::cout << "Ratio: " << (float)index.GetTotalDistCompMiss() / index.GetTotalDistComp()  * 100 << " %" << std::endl;
+  std::cout << "Speedup: " << (float)(index.Get_nd()) * query_num / index.GetTotalDistComp() << std::endl;
+  std::cout << "=====================================" << std::endl;
 #endif
+#ifdef PROFILE
+  std::cout << "========Thread Latency Report========" << std::endl;
+  double* timer = (double*)calloc(4, sizeof(double));
+  for (unsigned int tid = 0; tid < num_threads; tid++) {
+    timer[0] += index.profile_time[tid * 4]; // visited list init time
+    timer[1] += index.profile_time[tid * 4 + 1]; // query hash stage time
+    timer[2] += index.profile_time[tid * 4 + 2]; // candidate selection stage time
+    timer[3] += index.profile_time[tid * 4 + 3]; // fast L2 distance compute time
+  }
+#ifdef ADA_NNS
+  std::cout << "visited_init time: " << timer[0] / query_num << "ms" << std::endl;
+  std::cout << "query_hash time: " << timer[1] / query_num << "ms" << std::endl;
+  std::cout << "cand_select time: " << timer[2] / query_num << "ms" << std::endl;
+  std::cout << "dist time: " << timer[3] / query_num << "ms" << std::endl;
+#else
+  std::cout << "visited_init time: " << timer[0] / query_num << "ms" << std::endl;
+  std::cout << "dist time: " << timer[3] / query_num << "ms" << std::endl;
+#endif
+  std::cout << "=====================================" << std::endl;
+#endif
+
 
   return 0;
 }

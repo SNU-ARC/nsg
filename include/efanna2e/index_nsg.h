@@ -37,35 +37,31 @@ class IndexNSG : public Index {
       unsigned *indices) override;
   void SearchWithOptGraph(
       const float *query,
+      boost::dynamic_bitset<>& flags,
       size_t K,
       const Parameters &parameters,
       unsigned *indices);
   void OptimizeGraph(float* data);
 
-  // SJ: For profile
-  unsigned int total_traverse = 0;
-  unsigned int total_traverse_miss = 0;
-  void GetNeighborList();
-  void GetAllVectors();
-  void CountZeroElements();
-  void CountNegativeElements();
-  void GetMinMaxElement();  
-#ifdef PROFILE
-  unsigned int num_timer = 0;
-  std::vector<double> profile_time;
+#ifdef GET_DIST_COMP
+  uint64_t GetTotalDistComp() { return total_dist_comp; }
+  uint64_t GetTotalDistCompMiss() { return total_dist_comp; }
 #endif
-
-  // SJ: For SRP
-  unsigned int hash_bitwidth;
-  float* hash_function;
-  unsigned int hash_function_size;
+#ifdef ADA_NNS
+  void SetTau(const float tau) { tau_ = tau; }
+  void SetHashBitwidth(const uint64_t hash_bitwidth) { hash_bitwidth_ = hash_bitwidth; }
   void GenerateHashFunction (char* file_name);
-  unsigned int* hash_value;
-  void GenerateHashValue (char* file_name);
-  void DeallocateHashVector ();
-  bool LoadHashFunction (char* file_name);
-  bool LoadHashValue (char* file_name);
-  float threshold_percent;
+  void GenerateHashedSet (char* file_name);
+  bool ReadHashFunction (char* file_name);
+  bool ReadHashedSet (char* file_name);
+  void QueryHash(const float* query, unsigned* hashed_query, unsigned hash_size);
+  unsigned CandidateSelection(const __m256i* hashed_query_avx, std::vector<HashNeighbor>& selected_pool, const unsigned* neighbors, const unsigned MaxM, const unsigned hash_size);
+#endif
+#ifdef PROFILE
+  void SetTimer(const uint32_t num_threads) { profile_time.resize(numt_threads * 4, 0.0); }
+  double get_timer(const uint32_t idx) { return profile_time[idx]; }
+#endif
+  size_t Get_nd() { return nd_; }; 
 
   protected:
     typedef std::vector<std::vector<unsigned > > CompactGraph;
@@ -107,8 +103,21 @@ class IndexNSG : public Index {
     size_t neighbor_len;
     KNNGraph nnd_graph;
 
-    // SJ: Add hash values
-    size_t hash_len;
+#ifdef GET_DIST_COMP
+    uint64_t total_dist_comp_ = 0; // # of distance compute during search
+    uint64_t total_dist_comp_miss_ = 0; // # of distance compute, but not pushed in candidate pool
+#endif
+#ifdef ADA_NNS
+    float tau_; // candidate selection threshold
+                // _tau = 0.3 means only top 30% of neighbors 
+                // having the smallest angular distance to the query are selected
+    unsigned int hash_bitwidth_;
+    float* hash_function_;
+    unsigned int* hashed_set_;
+#endif
+#ifdef PROFILE
+  std::vector<double> profile_time;
+#endif
 };
 }
 
