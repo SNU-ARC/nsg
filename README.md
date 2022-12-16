@@ -59,7 +59,9 @@ $ cd tests/
 $ ./evaluate_baseline.sh [dataset] [log_suffix]
 ```
 The argument is as follows:
+
 (i) dataset: Name of the dataset. The script supports various real datasets (e.g., SIFT1M, GIST1M, CRAWL, DEEP1M, DEEP100M_16T).
+
 (ii) log\_suffix: We print the result as the log. The log will be '[dataset]\_search\_L[L]K[K]\_[log\_suffix]\_T[num\_threads].log'.
 
 To change parameter for search (e.g., K, L, number of threads), open `evaluate_baseline.sh` and modify the parameter `K, L_SIZE, T`.
