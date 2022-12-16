@@ -109,8 +109,13 @@ int main(int argc, char** argv) {
 #ifdef ADA_NNS
   float tau = (float)atof(argv[8]);
   uint64_t hash_bitwidth = (uint64_t)atoi(argv[9]);
+  int num_threads = atoi(argv[10]);
+  omp_set_num_threads(num_threads);
   index.SetHashBitwidth(hash_bitwidth);
   index.SetTau(tau);
+#else
+  uint32_t num_threads = atoi(argv[8]);
+  omp_set_num_threads(num_threads);
 #endif
   index.OptimizeGraph(data_load);
 #ifdef ADA_NNS
@@ -143,9 +148,6 @@ int main(int argc, char** argv) {
 
   std::vector<std::vector<unsigned> > res(query_num);
   for (unsigned i = 0; i < query_num; i++) res[i].resize(K);
-
-  int num_threads = atoi(argv[10]);
-  omp_set_num_threads(num_threads);
 #ifdef THREAD_LATENCY
   std::vector<double> latency_stats(query_num, 0);
 #endif
@@ -213,13 +215,13 @@ int main(int argc, char** argv) {
   std::cout << "=====================================" << std::endl;
 #endif
 #ifdef PROFILE
-  std::cout << "========Thread Latency Report========" << std::endl;
+  std::cout << "=======Profile Report========" << std::endl;
   double* timer = (double*)calloc(4, sizeof(double));
   for (unsigned int tid = 0; tid < num_threads; tid++) {
-    timer[0] += index.profile_time[tid * 4]; // visited list init time
-    timer[1] += index.profile_time[tid * 4 + 1]; // query hash stage time
-    timer[2] += index.profile_time[tid * 4 + 2]; // candidate selection stage time
-    timer[3] += index.profile_time[tid * 4 + 3]; // fast L2 distance compute time
+    timer[0] += index.GetTimer(tid * 4); // visited list init time
+    timer[1] += index.GetTimer(tid * 4 + 1); // query hash stage time
+    timer[2] += index.GetTimer(tid * 4 + 2); // candidate selection stage time
+    timer[3] += index.GetTimer(tid * 4 + 3); // fast L2 distance compute time
   }
 #ifdef ADA_NNS
   std::cout << "visited_init time: " << timer[0] / query_num << "ms" << std::endl;

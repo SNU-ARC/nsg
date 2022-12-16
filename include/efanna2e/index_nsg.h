@@ -44,8 +44,8 @@ class IndexNSG : public Index {
   void OptimizeGraph(float* data);
 
 #ifdef GET_DIST_COMP
-  uint64_t GetTotalDistComp() { return total_dist_comp; }
-  uint64_t GetTotalDistCompMiss() { return total_dist_comp; }
+  uint64_t GetTotalDistComp() { return total_dist_comp_; }
+  uint64_t GetTotalDistCompMiss() { return total_dist_comp_miss_; }
 #endif
 #ifdef ADA_NNS
   void SetTau(const float tau) { tau_ = tau; }
@@ -58,8 +58,8 @@ class IndexNSG : public Index {
   unsigned CandidateSelection(const __m256i* hashed_query_avx, std::vector<HashNeighbor>& selected_pool, const unsigned* neighbors, const unsigned MaxM, const unsigned hash_size);
 #endif
 #ifdef PROFILE
-  void SetTimer(const uint32_t num_threads) { profile_time.resize(numt_threads * 4, 0.0); }
-  double get_timer(const uint32_t idx) { return profile_time[idx]; }
+  void SetTimer(const uint32_t num_threads) { profile_time.resize(num_threads * 4, 0.0); }
+  double GetTimer(const uint32_t idx) { return profile_time[idx]; }
 #endif
   size_t Get_nd() { return nd_; }; 
 

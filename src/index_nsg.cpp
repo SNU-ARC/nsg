@@ -616,10 +616,10 @@ void IndexNSG::SearchWithOptGraph(const float *query, boost::dynamic_bitset<>& f
         data++;
         float dist = dist_fast->compare(query, data, norm, (unsigned)dimension_);
 #ifdef GET_DIST_COMP
-        total_dist_comp++;
+        total_dist_comp_++;
         if (dist >= retset[L - 1].distance) {
-          total_dist_comp_mis++;
-          continue
+          total_dist_comp_miss_++;
+          continue;
         }
 #else
         if (dist >= retset[L - 1].distance)
@@ -634,7 +634,7 @@ void IndexNSG::SearchWithOptGraph(const float *query, boost::dynamic_bitset<>& f
 #ifdef PROFILE
       auto dist_end = std::chrono::high_resolution_clock::now();
       std::chrono::duration<double> dist_diff = dist_end - dist_start;
-      profile_time[tid * num_timer + 3] += dist_diff.count() * 1000000;
+      profile_time[tid * 4 + 3] += dist_diff.count() * 1000000;
 #endif
     }
     if (nk <= k)
