@@ -54,8 +54,8 @@ class IndexNSG : public Index {
   void GenerateHashedSet (char* file_name);
   bool ReadHashFunction (char* file_name);
   bool ReadHashedSet (char* file_name);
-  void QueryHash(const float* query, unsigned* hashed_query, unsigned hash_size);
-  unsigned CandidateSelection(const __m256i* hashed_query_avx, std::vector<HashNeighbor>& selected_pool, const unsigned* neighbors, const unsigned MaxM, const unsigned hash_size);
+  void QueryHash(const float* query, unsigned* hashed_query, const uint64_t hash_size);
+  unsigned CandidateSelection(const unsigned* hashed_query, const __m256i* hashed_query_avx, std::vector<HashNeighbor>& selected_pool, const unsigned* neighbors, const unsigned MaxM, const uint64_t hash_size);
 #endif
 #ifdef PROFILE
   void SetTimer(const uint32_t num_threads) { profile_time.resize(num_threads * 4, 0.0); }

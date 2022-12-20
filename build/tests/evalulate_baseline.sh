@@ -82,6 +82,7 @@ nsg_crawl() {
 }
 
 nsg_deep100M_16T() {
+  # Build a proximity graph
   export sub_num=(0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15)
   for id in ${sub_num[@]}; do
     if [ ! -f "deep100M_${id}.nsg" ]; then
@@ -94,10 +95,21 @@ nsg_deep100M_16T() {
       fi
     fi
   done
-  echo "Perform kNN searching using NSG index (deep100M_L${1}K${2}T${4})"
+
+  # Perform search
+  echo "Perform kNN searching using NSG index (deep100M_L${1}K${2}T16)"
   sudo sh -c "sync && echo 3 > /proc/sys/vm/drop_caches"
-  ./test_nsg_optimized_search_multi deep100M/deep100M_base.fvecs deep100M/deep100M_query.fvecs deep100M.nsg ${1} ${2} \
-    deep100M_nsg_result.ivecs deep100M/deep100M_groundtruth.ivecs 512 0.3 ${4} > deep100M_search_L${1}K${2}_${3}_T${4}.log
+  for id in ${sub_num[@]}; do
+    ./test_nsg_optimized_search deep100M/deep100M_base_${id}.fvecs deep100M/deep100M_query.fvecs deep100M_${id}.nsg ${1} ${2} \
+      deep100M_nsg_result_L${1}K${2}_${3}_T16.ivecs deep100M/deep100M_groundtruth.ivecs ${4} ${id} > deep100M_search_L${1}K${2}_${3}_T16_${id}.log &
+  done
+  wait
+  rm -rf deep100M_search_L${1}K${2}_${3}_T16.log
+  for id in ${sub_num[@]}; do
+    awk 'NR==2{ printf "%s ", $2; exit }' deep100M_search_L${1}K${2}_${3}_T16_${id}.log >> deep100M_search_L${1}K${2}_${3}_T16.log
+    awk 'NR==3{ print substr($0, 1, length($0) - 1); exit }' deep100M_search_L${1}K${2}_${3}_T16_${id}.log >> deep100M_search_L${1}K${2}_${3}_T16.log
+  done
+  cat deep100M_search_L${1}K${2}_${3}_T16.log | awk '{sum += $2;} {if(NR==1) min = $1} {if($1 < min) min = $1} END { print "min_qps: " min; print "recall: " sum; }' >> deep100M_search_L${1}K${2}_${3}_T16.log 
 }
 
 if [[ ${#} -eq 1 ]]; then

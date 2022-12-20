@@ -67,20 +67,27 @@ void save_result(const char* filename,
 }
 
 int main(int argc, char** argv) {
+  int sub_id = -1;
 #ifdef ADA_NNS
-  if (argc != 11) {
+  if (argc < 11) {
     std::cout << argv[0]
-              << " data_file query_file nsg_path search_L search_K result_path ground_truth_path hash_bitwidth tau num_threads"
+              << " data_file query_file nsg_path search_L search_K result_path ground_truth_path tau hash_bitwidth num_threads [sub_id]"
               << std::endl;
     exit(-1);
   }
+
+  if (argc == 12)
+    sub_id = (int)atoi(argv[11]);
 #else
-  if (argc != 9) {
+  if (argc < 9) {
     std::cout << argv[0]
-              << " data_file query_file nsg_path search_L search_K result_path ground_truth_path num_threads"
+              << " data_file query_file nsg_path search_L search_K result_path ground_truth_path num_threads [sub_id]"
               << std::endl;
     exit(-1);
   }
+
+  if (argc == 10)
+    sub_id = (int)atoi(argv[9]);
 #endif
   float* data_load = NULL;
   unsigned points_num, dim;
@@ -187,9 +194,17 @@ int main(int argc, char** argv) {
   for (unsigned int i = 0; i < query_num; i++) {
     for (unsigned int j = 0; j < K; j++) {
       for (unsigned int k = 0; k < K; k++) {
-        if (res[i][j] == *(ground_truth_load + i * ground_truth_dim + k)) {
-          topk_hit++;
-          break;
+        if (sub_id == -1) {
+          if (res[i][j] == *(ground_truth_load + i * ground_truth_dim + k)) {
+            topk_hit++;
+            break;
+          }
+        }
+        else { // [ARC-SJ] Recall for deep100M_16T
+          if (res[i][j] + (6250000 * sub_id) == *(ground_truth_load + i * ground_truth_dim + k)) {
+            topk_hit++;
+            break;
+          }
         }
       }
     }
