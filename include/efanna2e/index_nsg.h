@@ -55,11 +55,15 @@ class IndexNSG : public Index {
   bool ReadHashFunction (char* file_name);
   bool ReadHashedSet (char* file_name);
   void QueryHash(const float* query, unsigned* hashed_query, const uint64_t hash_size);
-  unsigned CandidateSelection(const unsigned* hashed_query, const __m256i* hashed_query_avx, std::vector<HashNeighbor>& selected_pool, const unsigned* neighbors, const unsigned MaxM, const uint64_t hash_size);
+  unsigned CandidateSelection(const unsigned* hashed_query, const __m256i* hashed_query_avx, std::vector<HashNeighbor>& selected_pool, boost::dynamic_bitset<>& flags, const unsigned* neighbors, const unsigned MaxM, const uint64_t hash_size);
 #endif
 #ifdef PROFILE
   void SetTimer(const uint32_t num_threads) { profile_time.resize(num_threads * 4, 0.0); }
   double GetTimer(const uint32_t idx) { return profile_time[idx]; }
+#endif
+#ifdef GET_VISITED
+  uint64_t GetTotalAccess() { return total_access; }
+  uint64_t GetVisitedAccess() { return visited_access; }
 #endif
   size_t Get_nd() { return nd_; }; 
 
@@ -117,6 +121,10 @@ class IndexNSG : public Index {
 #endif
 #ifdef PROFILE
   std::vector<double> profile_time;
+#endif
+#ifdef GET_VISITED
+  uint64_t total_access = 0;
+  uint64_t visited_access = 0;
 #endif
 };
 }
