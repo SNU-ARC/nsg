@@ -28,7 +28,7 @@ $ sudo apt-get install g++ cmake libboost-dev libgoogle-perftools-dev
 ```shell
 $ git clone https://github.com/SNU-ARC/nsg
 $ cd nsg/
-$ git checkout graphANNS
+$ git checkout ADA-NNS
 $ cd build/
 $ ./build.sh
 ```
@@ -45,13 +45,37 @@ To use NSG for ANNS, an NSG index must be built first. Here are the instructions
 
 Firstly, we need to prepare a kNN graph.
 
-NSG suggests to use [efanna\_graph](https://github.com/ZJULearning/efanna\_graph) to build this kNN graph. We provide the script to build kNN graphs for various datasets. Please refer to [efanna\_graph](https://github.com/SNU-ARC/efanna\_graph) and checkout `graphANNS` branch.
+NSG suggests to use [efanna\_graph](https://github.com/ZJULearning/efanna\_graph) to build this kNN graph. We provide the script to build kNN graphs for various datasets. Please refer to [efanna\_graph](https://github.com/SNU-ARC/efanna\_graph) and checkout `ADA-NNS` branch.
 
 You can also use any alternatives, such as [Faiss](https://github.com/facebookresearch/faiss).
+
+The parameters used to build each graphs are as follows.
+
+| Dataset          | K   | L     | iter  | S   | R |
+|----------|-----------|-------------|--------------|--------------|--------------|
+| SIFT1M      | 200 | 200   | 10    | 10  | 100 |
+| GIST1M      | 400 | 400   | 12    | 15  | 100 |
+| CRAWL       | 400 | 420   | 12    | 15  | 100 |
+| DEEP1M      | 200 | 200   | 10    | 10  | 100 |
+| DEEP100M    | 400 | 420   | 12    | 20  | 200 |
+| MSONG       | 200 | 200   | 10    | 10  | 100 |
+| GLOVE-100   | 400 | 420   | 12    | 20  | 200 |
 
 #### Step 2. Build NSG index and search via NSG index
 
 Secondly, we will convert the kNN graph to our NSG index and perform search.
+
+The parameters used to build each indices are as follows.
+
+| Dataset          | L   | R     | C|
+|----------|-----------|-------------|--------------|
+| SIFT1M      | 40  | 50   | 500    |
+| GIST1M      | 60  | 70   | 500    |
+| CRAWL       | 150 | 50   | 1000   |
+| DEEP1M      | 200 | 40   | 1000   |
+| MSONG       | 40  | 50   | 500    |
+| GLOVE-100   | 60  | 70    | 500   |
+| DEEP100M    | 200 | 40   | 1000   |
 
 To use the greedy search, use the `tests/evaluate_baseline.sh` script:
 ```shell
@@ -60,9 +84,9 @@ $ ./evaluate_baseline.sh [dataset] [log_suffix]
 ```
 The argument is as follows:
 
-(i) dataset: Name of the dataset. The script supports various real datasets (e.g., SIFT1M, GIST1M, CRAWL, DEEP1M, DEEP100M_16T).
+(i) dataset: Name of the dataset. The script supports various real datasets (e.g., SIFT1M, GIST1M, CRAWL, DEEP1M, DEEP100M, msong, glove-100).
 
-(ii) log\_suffix: We print the result as the log. The log will be '[dataset]\_search\_L[L]K[K]\_[log\_suffix]\_T[num\_threads].log'.
+(ii) log\_suffix: We print the result as the log. The log will be '[dataset]\_search\_baseline_L[L]\_K[K]\_T[num\_threads].log'.
 
 To change parameter for search (e.g., K, L, number of threads), open `evaluate_baseline.sh` and modify the parameter `K, L_SIZE, T`.
 
