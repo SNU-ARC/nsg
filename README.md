@@ -79,20 +79,18 @@ The parameters used to build each indices are as follows.
 To use the greedy search, use the `tests/evaluate_baseline.sh` script:
 ```shell
 $ cd tests/
-$ ./evaluate_baseline.sh [dataset] [log_suffix]
+$ ./evaluate_baseline.sh [dataset]
 ```
 The argument is as follows:
 
 (i) dataset: Name of the dataset. The script supports various real datasets (e.g., SIFT1M, GIST1M, CRAWL, DEEP1M, msong, glove-100).
-
-(ii) log\_suffix: We print the result as the log. The log will be '[dataset]\_search\_baseline_L[L]\_K[K]\_T[num\_threads].log'.
 
 To change parameter for search (e.g., K, L, number of threads), open `evaluate_baseline.sh` and modify the parameter `K, L_SIZE, T`.
 
 To use the ADA-NNS, use the `tests/evaluate_ADA-NNS.sh` script:
 ```shell
 $ cd tests/
-$ ./evaluate_ADA-NNS.sh [dataset] [log_suffix]
+$ ./evaluate_ADA-NNS.sh [dataset]
 ```
 The arguments are same as above in `evaluate_baseline.sh`.
 
