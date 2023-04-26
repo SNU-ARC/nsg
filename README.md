@@ -76,6 +76,8 @@ The parameters used to build each indices are as follows.
 | MSONG       | 40  | 50   | 500    |
 | GLOVE-100   | 60  | 70   | 500    |
 
+### Searching with NSG Index
+
 To use the greedy search, use the `tests/evaluate_baseline.sh` script:
 ```shell
 $ cd tests/
