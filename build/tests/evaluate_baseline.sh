@@ -107,11 +107,11 @@ nsg_deep1M() {
 nsg_msong() {
   # Build a proximity graph
   if [ ! -f "msong.nsg" ]; then
-    echo "Converting msong_400nn.graph kNN graph to msong.nsg"
-    if [ -f "msong_400nn.graph" ]; then
-      ./test_nsg_index msong/msong_base.fvecs msong_400nn.graph 40 50 500  msong.nsg > msong_index_${TIME}.log
+    echo "Converting msong_200nn.graph kNN graph to msong.nsg"
+    if [ -f "msong_200nn.graph" ]; then
+      ./test_nsg_index msong/msong_base.fvecs msong_200nn.graph 40 50 500  msong.nsg > msong_index_${TIME}.log
     else
-      echo "ERROR: msong_400nn.graph does not exist"
+      echo "ERROR: msong_200nn.graph does not exist"
       exit 1
     fi
   fi
