@@ -1,9 +1,32 @@
 #!/bin/bash
 export TIME=$(date '+%Y%m%d%H%M')
-MAX_THREADS=`nproc --all`
-THREAD=(1)
-K=(10)
-L_SIZE=(54)
+
+l_start=20
+l_end=200
+l_step=10
+
+for (( l=l_start; l<=l_end; l=l+l_step )); do
+	L_SIZE+=($l)
+done
+
+l_start=250
+l_end=500
+l_step=50
+
+for (( l=l_start; l<=l_end; l=l+l_step )); do
+	L_SIZE+=($l)
+done
+
+l_start=1000
+l_end=2500
+l_step=500
+
+for (( l=l_start; l<=l_end; l=l+l_step )); do
+	L_SIZE+=($l)
+done
+
+THREAD=(24)
+K=(1 10)
 
 nsg_sift1M() {
   # Build a proximity graph
@@ -18,10 +41,10 @@ nsg_sift1M() {
   fi
 
   # Perform search
-  echo "Perform searching using NSG index (sift1M_L${l}K${2}T${4})"
+  echo "Perform searching using NSG index (sift1M_L${1}K${2}T${4})"
   sudo sh -c "sync && echo 3 > /proc/sys/vm/drop_caches"
   ./test_nsg_optimized_search sift1M/sift_base.fvecs sift1M/sift_query.fvecs sift1M.nsg ${1} ${2} sift1M_nsg_result_L${1}K${2}_${3}_T${4}.ivecs \
-    sift1M/sift_groundtruth.ivecs ${4}> sift1M_search_L${1}K${2}_${3}_T${4}.log
+    sift1M/sift_groundtruth.ivecs ${4} > sift1M_search_${3}_L${1}_K${2}_T${4}.log
 }
 
 nsg_gist1M() {
@@ -40,26 +63,7 @@ nsg_gist1M() {
   echo "Perform searching using NSG index (gist1M_L${1}K${2}T${4})"
   sudo sh -c "sync && echo 3 > /proc/sys/vm/drop_caches"
   ./test_nsg_optimized_search gist1M/gist_base.fvecs gist1M/gist_query.fvecs gist1M.nsg ${1} ${2} gist1M_nsg_result_L${1}K${2}_${3}_T${4}.ivecs \
-    gist1M/gist_groundtruth.ivecs ${4}> gist1M_search_L${1}K${2}_${3}_T${4}.log
-}
-
-nsg_deep1M() {
-  # Build a proximity graph
-  if [ ! -f "deep1M.nsg" ]; then
-    echo "Converting deep1M_400nn.graph kNN graph to deep1M.nsg"
-    if [ -f "deep1M_400nn.graph" ]; then
-      ./test_nsg_index deep1M/deep1m_base.fvecs deep1M_400nn.graph 200 40 1000 deep1M.nsg > deep1M_index_${TIME}.log
-    else
-      echo "ERROR: deep1M_400nn.graph does not exist"
-      exit 1
-    fi
-  fi
-
-  # Perform search
-  echo "Perform searching using NSG index (deep1M_L${1}K${2}T${4})"
-  sudo sh -c "sync && echo 3 > /proc/sys/vm/drop_caches"
-  ./test_nsg_optimized_search deep1M/deep1m_base.fvecs deep1M/deep1m_query.fvecs deep1M.nsg ${1} ${2} deep1M_nsg_result_L${1}K${2}_${3}_T${4}.ivecs \
-    deep1M/deep1m_groundtruth.ivecs ${4}> deep1M_search_L${1}K${2}_${3}_T${4}.log
+    gist1M/gist_groundtruth.ivecs ${4}> gist1M_search_${3}_L${1}_K${2}_T${4}.log
 }
 
 nsg_crawl() {
@@ -78,101 +82,141 @@ nsg_crawl() {
   echo "Perform searching using NSG index (crawl_L${1}K${2}T${4})"
   sudo sh -c "sync && echo 3 > /proc/sys/vm/drop_caches"
   ./test_nsg_optimized_search crawl/crawl_base.fvecs crawl/crawl_query.fvecs crawl.nsg ${1} ${2} crawl_nsg_result_L${1}K${2}_${3}_T${4}.ivecs \
-    crawl/crawl_groundtruth.ivecs ${4}> crawl_search_L${1}K${2}_${3}_T${4}.log
+    crawl/crawl_groundtruth.ivecs ${4}> crawl_search_${3}_L${1}_K${2}_T${4}.log
 }
 
-nsg_deep100M_16T() {
+nsg_deep1M() {
   # Build a proximity graph
-  export sub_num=(0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15)
-  for id in ${sub_num[@]}; do
-    if [ ! -f "deep100M_${id}.nsg" ]; then
-      echo "Converting deep100M_400nn_${id}.graph kNN graph to deep100M_${id}.nsg"
-      if [ -f "efanna_graph/deep100M_400nn_${id}.graph" ]; then
-        ./test_nsg_index deep100M/deep100M_base_${id}.fvecs efanna_graph/deep100M_400nn_${id}.graph 200 40 1000 deep100M_${id}.nsg > deep100M_index_${id}_${TIME}.log
-      else
-        echo "ERROR: deep100M_400nn_${id}.graph does not exist"
-        exit 1
-      fi
+  if [ ! -f "deep1M.nsg" ]; then
+    echo "Converting deep1M_400nn.graph kNN graph to deep1M.nsg"
+    if [ -f "deep1M_400nn.graph" ]; then
+      ./test_nsg_index deep1M/deep1m_base.fvecs deep1M_400nn.graph 200 40 1000 deep1M.nsg > deep1M_index_${TIME}.log
+    else
+      echo "ERROR: deep1M_400nn.graph does not exist"
+      exit 1
     fi
-  done
+  fi
 
   # Perform search
-  echo "Perform kNN searching using NSG index (deep100M_L${1}K${2}T16)"
+  echo "Perform searching using NSG index (deep1M_L${1}K${2}T${4})"
   sudo sh -c "sync && echo 3 > /proc/sys/vm/drop_caches"
-  for id in ${sub_num[@]}; do
-    ./test_nsg_optimized_search deep100M/deep100M_base_${id}.fvecs deep100M/deep100M_query.fvecs deep100M_${id}.nsg ${1} ${2} \
-      deep100M_nsg_result_L${1}K${2}_${3}_T16.ivecs deep100M/deep100M_groundtruth.ivecs ${4} ${id} > deep100M_search_L${1}K${2}_${3}_T16_${id}.log &
-  done
-  wait
-  rm -rf deep100M_search_L${1}K${2}_${3}_T16.log
-  for id in ${sub_num[@]}; do
-    awk 'NR==2{ printf "%s ", $2; exit }' deep100M_search_L${1}K${2}_${3}_T16_${id}.log >> deep100M_search_L${1}K${2}_${3}_T16.log
-    awk 'NR==3{ print substr($0, 1, length($0) - 1); exit }' deep100M_search_L${1}K${2}_${3}_T16_${id}.log >> deep100M_search_L${1}K${2}_${3}_T16.log
-  done
-  cat deep100M_search_L${1}K${2}_${3}_T16.log | awk '{sum += $2;} {if(NR==1) min = $1} {if($1 < min) min = $1} END { print "min_qps: " min; print "recall: " sum; }' >> deep100M_search_L${1}K${2}_${3}_T16.log 
+  ./test_nsg_optimized_search deep1M/deep1m_base.fvecs deep1M/deep1m_query.fvecs deep1M.nsg ${1} ${2} deep1M_nsg_result_L${1}K${2}_${3}_T${4}.ivecs \
+    deep1M/deep1m_groundtruth.ivecs ${4}> deep1M_search_${3}_L${1}_K${2}_T${4}.log
 }
+
+nsg_msong() {
+  # Build a proximity graph
+  if [ ! -f "msong.nsg" ]; then
+    echo "Converting msong_400nn.graph kNN graph to msong.nsg"
+    if [ -f "msong_400nn.graph" ]; then
+      ./test_nsg_index msong/msong_base.fvecs msong_400nn.graph 40 50 500  msong.nsg > msong_index_${TIME}.log
+    else
+      echo "ERROR: msong_400nn.graph does not exist"
+      exit 1
+    fi
+  fi
+
+  # Perform search
+  echo "Perform searching using NSG index (msong_L${1}K${2}T${4})"
+  sudo sh -c "sync && echo 3 > /proc/sys/vm/drop_caches"
+  ./test_nsg_optimized_search msong/msong_base.fvecs msong/msong_query.fvecs msong.nsg ${1} ${2} msong_nsg_result_L${1}K${2}_${3}_T${4}.ivecs \
+    msong/msong_groundtruth.ivecs ${4}> msong_search_${3}_L${1}_K${2}_T${4}.log
+}
+
+nsg_glove-100() {
+  # Build a proximity graph
+  if [ ! -f "glove-100.nsg" ]; then
+    echo "Converting glove-100_400nn.graph kNN graph to glove-100.nsg"
+    if [ -f "glove-100_400nn.graph" ]; then
+      ./test_nsg_index glove-100/glove-100_base.fvecs glove-100_400nn.graph 60 70 500 glove-100.nsg > glove-100_index_${TIME}.log
+    else
+      echo "ERROR: glove-100_400nn.graph does not exist"
+      exit 1
+    fi
+  fi
+
+  # Perform search
+  echo "Perform searching using NSG index (glove-100_L${1}K${2}T${4})"
+  sudo sh -c "sync && echo 3 > /proc/sys/vm/drop_caches"
+  ./test_nsg_optimized_search glove-100/glove-100_base.fvecs glove-100/glove-100_query.fvecs glove-100.nsg ${1} ${2} glove-100_nsg_result_L${1}K${2}_${3}_T${4}.ivecs \
+    glove-100/glove-100_groundtruth.ivecs ${4}> glove-100_search_${3}_L${1}_K${2}_T${4}.log
+}
+
 
 if [[ ${#} -eq 1 ]]; then
   if [ "${1}" == "sift1M" ]; then
     for k in ${K[@]}; do
-      for l_size in ${L_SIZE[@]}; do
-        declare -i l=l_size
-        for t in ${THREAD[@]}; do
+      for t in ${THREAD[@]}; do
+        for l_size in ${L_SIZE[@]}; do
+          declare -i l=l_size
           nsg_sift1M ${l} ${k} baseline ${t}
         done
       done
     done
   elif [ "${1}" == "gist1M" ]; then
     for k in ${K[@]}; do
-      for l_size in ${L_SIZE[@]}; do
-        declare -i l=l_size
-        for t in ${THREAD[@]}; do
+      for t in ${THREAD[@]}; do
+        for l_size in ${L_SIZE[@]}; do
+          declare -i l=l_size
           nsg_gist1M ${l} ${k} baseline ${t}
         done
       done
     done
   elif [ "${1}" == "crawl" ]; then
     for k in ${K[@]}; do
-      for l_size in ${L_SIZE[@]}; do
-        declare -i l=l_size
-        for t in ${THREAD[@]}; do
+      for t in ${THREAD[@]}; do
+        for l_size in ${L_SIZE[@]}; do
+          declare -i l=l_size
           nsg_crawl ${l} ${k} baseline ${t}
         done
       done
     done
   elif [ "${1}" == "deep1M" ]; then
     for k in ${K[@]}; do
-      for l_size in ${L_SIZE[@]}; do
-        declare -i l=l_size
-        for t in ${THREAD[@]}; do
+      for t in ${THREAD[@]}; do
+        for l_size in ${L_SIZE[@]}; do
+          declare -i l=l_size
           nsg_deep1M ${l} ${k} baseline ${t}
         done
       done
     done
-  elif [ "${1}" == "deep100M_16T" ]; then
+  elif [ "${1}" == "msong" ]; then
     for k in ${K[@]}; do
-      for l_size in ${L_SIZE[@]}; do
-        declare -i l=l_size
-        for t in ${THREAD[@]}; do
-          nsg_deep100M_16T ${l} ${k} baseline ${t}
+      for t in ${THREAD[@]}; do
+        for l_size in ${L_SIZE[@]}; do
+          declare -i l=l_size
+          nsg_msong ${l} ${k} baseline ${t}
+        done
+      done
+    done
+  elif [ "${1}" == "glove-100" ]; then
+    for k in ${K[@]}; do
+      for t in ${THREAD[@]}; do
+        for l_size in ${L_SIZE[@]}; do
+          declare -i l=l_size
+          nsg_glove-100 ${l} ${k} baseline ${t}
         done
       done
     done
   elif [ "${1}" == "all" ]; then
     for k in ${K[@]}; do
-      for l_size in ${L_SIZE[@]}; do
-        declare -i l=l_size
-        for t in ${THREAD[@]}; do
+      for t in ${THREAD[@]}; do
+        for l_size in ${L_SIZE[@]}; do
+          declare -i l=l_size
           nsg_sift1M ${l} ${k} baseline ${t}
           nsg_gist1M ${l} ${k} baseline ${t}
           nsg_crawl ${l} ${k} baseline ${t}
           nsg_deep1M ${l} ${k} baseline ${t}
+          nsg_msong ${l} ${k} baseline ${t}
+          nsg_glove-100 ${l} ${k} baseline ${t}
         done
       done
     done
   else
     echo "Usage: ./evaluate_baseline.sh [dataset]"
   fi
+elif [[ ${#} -eq 4 ]]; then
+  nsg_$1 $2 $3 baseline $4
 else
   echo "Usage: ./evaluate_baseline.sh [dataset]"
 fi

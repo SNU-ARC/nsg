@@ -1,4 +1,5 @@
-# NSG 
+
+# NSG with ADA-NNS
 
 This repository is NSG with greedy search method (baseline) and ADA-NNS.
 
@@ -59,7 +60,6 @@ The parameters used to build each graphs are as follows.
 | DEEP1M      | 400 | 420   | 12    | 20  | 200 |
 | MSONG       | 200 | 200   | 10    | 10  | 100 |
 | GLOVE-100   | 400 | 420   | 12    | 20  | 200 |
-| DEEP100M    | 400 | 420   | 12    | 20  | 200 |
 
 #### Step 2. Build NSG index and search via NSG index
 
@@ -75,7 +75,6 @@ The parameters used to build each indices are as follows.
 | DEEP1M      | 200 | 40   | 1000   |
 | MSONG       | 40  | 50   | 500    |
 | GLOVE-100   | 60  | 70   | 500    |
-| DEEP100M    | 200 | 40   | 1000   |
 
 To use the greedy search, use the `tests/evaluate_baseline.sh` script:
 ```shell
@@ -84,7 +83,7 @@ $ ./evaluate_baseline.sh [dataset] [log_suffix]
 ```
 The argument is as follows:
 
-(i) dataset: Name of the dataset. The script supports various real datasets (e.g., SIFT1M, GIST1M, CRAWL, DEEP1M, DEEP100M, msong, glove-100).
+(i) dataset: Name of the dataset. The script supports various real datasets (e.g., SIFT1M, GIST1M, CRAWL, DEEP1M, msong, glove-100).
 
 (ii) log\_suffix: We print the result as the log. The log will be '[dataset]\_search\_baseline_L[L]\_K[K]\_T[num\_threads].log'.
 
