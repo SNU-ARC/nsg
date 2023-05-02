@@ -61,6 +61,10 @@ The parameters used to build each graphs are as follows.
 | MSONG       | 200 | 200   | 10    | 10  | 100 |
 | GLOVE-100   | 400 | 420   | 12    | 20  | 200 |
 
+The built graphs should be located in the directory `nsg/build/tests/.` as the following format.
+
+e.g., `sift1M_200nn.graph`, `gist1M_400nn.graph`
+
 #### Step 2. Build NSG index and search via NSG index
 
 Secondly, we will convert the kNN graph to our NSG index and perform search.
@@ -77,6 +81,11 @@ The parameters used to build each indices are as follows.
 | GLOVE-100   | 60  | 70   | 500    |
 
 ### Searching with NSG Index
+
+Dataset should be located in the directory `nsg/build/tests/.` as the following format.
+
+e.g., `sift1M`, `gist1M`
+
 
 To use the greedy search, use the `tests/evaluate_baseline.sh` script:
 ```shell
